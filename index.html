@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cinética LDX + ATX</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Simulação educacional em tempo real da farmacocinética de lisdexamfetamina 30 mg + atomoxetina 80 mg.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: bancada de instrumento — faixa de aviso fixa, osciloscópio (gráfico) como peça central,
+   leituras de estado à direita, módulos de apoio empilhados abaixo. Tema escuro único, por escolha. */
+:root{
+  --bg:#0a0f12; --panel:#10181c; --panel-2:#142026; --line:#22343b; --line-2:#2e464f;
+  --fg:#d8e3e5; --muted:#839a9e; --dim:#5b7074;
+  --ldx:#cfa64c;   /* LDX intacta */
+  --amp:#ff7a59;   /* d-anfetamina */
+  --atx:#3fc1d0;   /* atomoxetina (fenótipo ativo) */
+  --atx-alt:#a08fff; /* atomoxetina (fenótipo de comparação) */
+  --warn:#f2c14e; --warn-bg:#2a2210; --ok:#6fd39a; --now:#ffffff;
+  --f-display:"Chakra Petch", "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Hanken Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;margin:0;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:0 48px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--warn-bg)}
+a{color:var(--atx)} a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--warn);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;display:grid;gap:18px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:.01em}
+h1{font-size:clamp(1.5rem,3.2vw,2.2rem);font-weight:700;line-height:1.1}
+h2{font-size:1.15rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+h3{font-size:1rem;font-weight:600}
+p{margin:0}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .small{font-size:.85rem}
+.approx{color:var(--warn);font-family:var(--f-mono);font-size:.8em;margin-left:2px}
+
+/* ---- faixa de aviso fixa ---- */
+.disclaimer{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;margin-inline:calc(-1 * max(16px, env(safe-area-inset-left, 0px))) calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+  background:var(--warn-bg);border-bottom:1px solid #5a4716;color:#f6dd9b;font-size:.84rem}
+.disclaimer .in{max-width:1280px;margin:0 auto;padding:8px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));display:flex;gap:10px;align-items:flex-start}
+.disclaimer b{color:var(--warn);font-family:var(--f-display);letter-spacing:.06em;white-space:nowrap}
+.disclaimer details summary{cursor:pointer;color:var(--warn);display:inline}
+.disclaimer ul{margin:6px 0 2px;padding-left:18px}
+
+/* ---- cabeçalho ---- */
+header.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:16px;padding-top:22px}
+.eyebrow{font-family:var(--f-mono);font-size:.75rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+.clock{text-align:right}
+.clock .t{font-family:var(--f-mono);font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:500;line-height:1;color:var(--now)}
+.clock .d{font-size:.8rem;color:var(--muted);font-family:var(--f-mono)}
+.mode-pill{display:inline-block;font-family:var(--f-mono);font-size:.7rem;padding:2px 8px;border-radius:3px;border:1px solid var(--line-2);color:var(--ok);letter-spacing:.1em}
+.mode-pill.sim{color:var(--warn);border-color:#5a4716}
+
+/* ---- painéis ---- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+
+/* controles */
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.ctl{display:grid;gap:5px;min-width:0}
+.ctl label,.ctl .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-family:var(--f-mono)}
+input[type=datetime-local],input[type=number],select{background:var(--panel-2);border:1px solid var(--line-2);color:var(--fg);border-radius:4px;padding:7px 8px;font-family:var(--f-mono);font-size:.88rem;width:100%;min-width:0}
+.seg{display:flex;border:1px solid var(--line-2);border-radius:4px;overflow:hidden}
+.seg button{flex:1;background:var(--panel-2);color:var(--muted);border:0;padding:7px 6px;font-family:var(--f-mono);font-size:.8rem;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button[aria-pressed=true]{background:#1d3238;color:var(--fg)}
+.seg.cyp button[aria-pressed=true][data-v=PM]{background:#2a2447;color:#d4ccff}
+.btn{background:var(--panel-2);color:var(--fg);border:1px solid var(--line-2);border-radius:4px;padding:6px 12px;font-family:var(--f-mono);font-size:.8rem;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.check,.ctl label.check{display:flex;gap:8px;align-items:center;font-size:.88rem;cursor:pointer;text-transform:none;letter-spacing:0;font-family:var(--f-body);color:var(--fg)}
+input[type=range]{width:100%;accent-color:var(--atx)}
+
+/* gráfico */
+.scope{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}
+@media (max-width:980px){.scope{grid-template-columns:minmax(0,1fr)}}
+.chart-box{position:relative;height:440px;background:
+  linear-gradient(var(--panel),var(--panel));border-radius:4px}
+@media (max-width:600px){.chart-box{height:340px}}
+.chart-box canvas{display:block}
+.chart-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.82rem}
+.legend button{background:none;border:0;color:var(--fg);display:flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--f-body);font-size:.82rem;padding:2px 0}
+.legend button[aria-pressed=false]{opacity:.38}
+.sw{width:18px;height:3px;border-radius:2px;display:inline-block}
+.sw.dash{background:repeating-linear-gradient(90deg,var(--atx-alt) 0 4px,transparent 4px 7px)!important}
+.scrub{display:none;gap:10px;align-items:center;margin-top:10px}
+.scrub.on{display:flex}
+.scrub output{min-width:150px;text-align:right}
+
+/* leituras */
+.readouts{display:grid;gap:10px;align-content:start}
+.ro{border:1px solid var(--line);border-left:3px solid var(--c);border-radius:4px;padding:10px 12px;background:var(--panel-2);display:grid;gap:4px}
+.ro .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ro .name{font-size:.82rem;color:var(--muted)}
+.ro .val{font-family:var(--f-mono);font-size:1.35rem;color:var(--fg);font-variant-numeric:tabular-nums}
+.ro .val small{font-size:.7rem;color:var(--muted)}
+.bar{height:5px;background:#0c1417;border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--c);width:0;transition:width .6s}
+.phase{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;border:1px solid var(--c);color:var(--c);white-space:nowrap}
+.explain{font-size:.88rem;color:#b9c8cb;border-top:1px dashed var(--line-2);padding-top:10px;display:grid;gap:8px}
+.explain b{color:var(--fg)}
+
+/* resumo para leigos */
+.lay{display:grid;gap:16px;border-color:var(--line-2);background:linear-gradient(180deg,var(--panel-2),var(--panel))}
+.lay-head{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline;justify-content:space-between}
+.lay-lead{font-family:var(--f-display);font-size:clamp(1.15rem,2.4vw,1.5rem);font-weight:600;line-height:1.3;text-wrap:balance;max-width:60ch}
+.lay-meter{display:flex;gap:4px;align-items:center;font-family:var(--f-mono);font-size:.75rem;color:var(--muted)}
+.lay-meter i{width:18px;height:8px;border-radius:2px;background:#1b2a2f;display:block}
+.lay-meter i.on{background:var(--amp)}
+.lay-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:900px){.lay-cols{grid-template-columns:minmax(0,1fr)}}
+.lay-col{display:grid;gap:8px;align-content:start;min-width:0}
+.lay-col h3{font-family:var(--f-mono);font-size:.72rem;font-weight:500;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.lay-col ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:.92rem}
+.lay-col.alert ul{color:#f3dfa8}
+.lay-foot{font-size:.8rem;color:var(--muted);border-top:1px dashed var(--line-2);padding-top:10px}
+
+/* grid de módulos */
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+@media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
+
+/* timeline de efeitos */
+.tl{display:grid;gap:10px}
+.tl-row{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;align-items:center}
+@media (max-width:560px){.tl-row{grid-template-columns:minmax(0,1fr)}}
+.tl-lbl{font-size:.82rem}
+.tl-track{position:relative;height:30px;background:#0c1417;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.tl-band{position:absolute;top:0;bottom:0}
+.tl-band span{position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:.7rem;font-family:var(--f-mono);color:#0a0f12;white-space:nowrap;font-weight:500}
+.tl-now{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--now);box-shadow:0 0 8px var(--now)}
+.tl-axis{position:relative;height:18px;margin-left:160px;font-family:var(--f-mono);font-size:.68rem;color:var(--muted)}
+@media (max-width:560px){.tl-axis{margin-left:0}}
+.tl-axis span{position:absolute;transform:translateX(-50%)}
+
+/* sinapse */
+.syn-box{position:relative;width:100%;aspect-ratio:16/10;max-width:100%;background:#0b1316;border:1px solid var(--line);border-radius:4px}
+.syn-box canvas{width:100%;height:100%;display:block}
+.syn-key{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.78rem;color:var(--muted);margin-top:8px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+
+/* avançado */
+details.adv>summary{cursor:pointer;font-family:var(--f-display);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:1.05rem;list-style:none}
+details.adv>summary::before{content:"▸ ";color:var(--muted)}
+details.adv[open]>summary::before{content:"▾ "}
+.sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px 22px;margin-top:14px}
+.sl{display:grid;gap:3px}
+.sl .top{display:flex;justify-content:space-between;gap:8px;font-size:.82rem}
+.sl output{font-family:var(--f-mono);color:var(--fg)}
+.sl .src{font-size:.72rem;color:var(--dim)}
+.group-t{grid-column:1/-1;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:4px;margin-top:6px}
+
+/* tabelas e texto */
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.84rem;min-width:640px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:500}
+td.num{font-family:var(--f-mono);white-space:nowrap}
+.prose{display:grid;gap:10px;max-width:72ch}
+.prose ul{margin:0;padding-left:20px;display:grid;gap:6px}
+.callout{border:1px solid var(--line-2);background:var(--panel-2);border-radius:4px;padding:12px 14px;font-size:.9rem}
+.refs{margin:0;padding-left:22px;display:grid;gap:8px;font-size:.88rem}
+.refs .note{color:var(--muted);font-size:.8rem}
+footer{color:var(--dim);font-size:.8rem;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="disclaimer" role="note" aria-label="Aviso">
+  <div class="in">
+    <b>⚠ EDUCACIONAL</b>
+    <div>
+      Simulação baseada em <strong>médias populacionais</strong>. Não é aconselhamento médico e não deve orientar dose ou horário.
+      <details><summary>Ler aviso completo</summary>
+        <ul>
+          <li>Ferramenta estritamente educacional, construída a partir de parâmetros médios publicados (bulas da FDA e estudos de PK).</li>
+          <li>Não substitui consulta. Não use para decidir dose, horário, redosagem ou combinação.</li>
+          <li>A variabilidade individual é grande: genética (CYP2D6), pH urinário, alimento, peso, idade, função renal/hepática e outros medicamentos.</li>
+          <li>A combinação lisdexamfetamina + atomoxetina deve ser conduzida apenas sob supervisão médica.</li>
+          <li>Concentração plasmática não é o mesmo que efeito clínico.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <div style="display:grid;gap:6px;min-width:0">
+      <span class="eyebrow">Simulador farmacocinético · uso educacional</span>
+      <h1>Lisdexamfetamina 30 mg + Atomoxetina 80 mg</h1>
+      <p class="muted small">Modelos compartimentais com parâmetros de bula e literatura. Valores marcados com <span class="approx">≈</span> são estimativas ou calibrações aproximadas.</p>
+    </div>
+    <div class="clock">
+      <span id="modePill" class="mode-pill">TEMPO REAL</span>
+      <div class="t" id="clockT">--:--:--</div>
+      <div class="d" id="clockD"></div>
+    </div>
+  </header>
+
+  <!-- CONTROLES -->
+  <section class="panel" aria-labelledby="h-ctl">
+    <div class="panel-head"><h2 id="h-ctl">Entrada</h2><span class="muted small">Os horários abaixo são exemplos. Ajuste para explorar.</span></div>
+    <div class="controls">
+      <div class="ctl"><label for="tLdx">Ingestão LDX 30 mg</label><input type="datetime-local" id="tLdx"></div>
+      <div class="ctl"><label for="tAtx">Ingestão ATX 80 mg</label><input type="datetime-local" id="tAtx"></div>
+      <div class="ctl"><span class="lbl">CYP2D6 (atomoxetina)</span>
+        <div class="seg cyp" id="cypSeg" role="group" aria-label="Fenótipo CYP2D6">
+          <button data-v="EM" aria-pressed="true">EM · extensivo</button><button data-v="PM" aria-pressed="false">PM · pobre</button>
+        </div></div>
+      <div class="ctl"><label for="days">Doses diárias (multi-dose)</label>
+        <select id="days"><option value="1">1 dose (dose única)</option><option value="2">2 dias</option><option value="3">3 dias</option><option value="5">5 dias</option><option value="7">7 dias</option><option value="10">10 dias</option></select></div>
+      <div class="ctl"><label for="weight">Peso corporal (kg)</label><input type="number" id="weight" min="30" max="150" step="1" value="70"></div>
+      <div class="ctl"><span class="lbl">Opções</span>
+        <label class="check"><input type="checkbox" id="food"> Tomado com refeição gordurosa</label>
+        <label class="check"><input type="checkbox" id="compare" checked> Mostrar fenótipo oposto (tracejado)</label>
+      </div>
+    </div>
+  </section>
+
+  <!-- OSCILOSCÓPIO + ESTADO -->
+  <section class="scope">
+    <div class="panel" aria-labelledby="h-chart">
+      <div class="panel-head">
+        <h2 id="h-chart">Concentração plasmática × tempo</h2>
+        <div class="seg" id="timeMode" role="group" aria-label="Modo de tempo" style="min-width:220px">
+          <button data-v="real" aria-pressed="true">Tempo real</button><button data-v="sim" aria-pressed="false">Explorar</button>
+        </div>
+      </div>
+      <div class="chart-box"><canvas id="chart" aria-label="Gráfico de concentração plasmática de LDX, d-anfetamina e atomoxetina ao longo do tempo"></canvas></div>
+      <div class="scrub" id="scrubRow">
+        <input type="range" id="scrub" min="0" max="48" step="0.05" value="6" aria-label="Instante simulado">
+        <output id="scrubOut" class="mono small"></output>
+      </div>
+      <div class="chart-tools">
+        <div class="legend" id="legend"></div>
+        <span style="flex:1"></span>
+        <button class="btn" id="resetZoom">Redefinir zoom</button>
+      </div>
+      <p class="muted small" style="margin-top:8px">Eixo esquerdo: LDX e d-anfetamina (ng/mL). Eixo direito: atomoxetina (ng/mL, ~10–30× maior). Role ou faça pinça para dar zoom; arraste para mover.</p>
+    </div>
+
+    <aside class="panel readouts" aria-labelledby="h-state">
+      <div class="panel-head" style="margin-bottom:2px"><h2 id="h-state">Estado atual</h2><span class="mono small muted" id="sinceDose"></span></div>
+      <div class="ro" style="--c:var(--amp)">
+        <div class="row"><span class="name">d-anfetamina (ativa)</span><span class="phase" id="phAmp">—</span></div>
+        <div class="row"><span class="val" id="vAmp">—</span><span class="mono small muted" id="pAmp"></span></div>
+        <div class="bar"><i id="bAmp"></i></div>
+      </div>
+      <div class="ro" style="--c:var(--ldx)">
+        <div class="row"><span class="name">LDX intacta (pró-fármaco)</span><span class="phase" id="phLdx">—</span></div>
+        <div class="row"><span class="val" id="vLdx">—</span><span class="mono small muted" id="pLdx"></span></div>
+        <div class="bar"><i id="bLdx"></i></div>
+      </div>
+      <div class="ro" style="--c:var(--atx)">
+        <div class="row"><span class="name" id="nAtx">Atomoxetina (EM)</span><span class="phase" id="phAtx">—</span></div>
+        <div class="row"><span class="val" id="vAtx">—</span><span class="mono small muted" id="pAtx"></span></div>
+        <div class="bar"><i id="bAtx"></i></div>
+      </div>
+      <div class="explain" id="explain" aria-live="polite"></div>
+      <p class="muted small">% do pico = fração do maior valor da curva exibida. Não é % de efeito.</p>
+    </aside>
+  </section>
+
+  <!-- RESUMO PARA LEIGOS -->
+  <section class="panel lay" aria-labelledby="h-lay">
+    <div class="lay-head">
+      <h2 id="h-lay">Em resumo: o que está acontecendo agora?</h2>
+      <div class="lay-meter" id="layMeter" aria-label="Intensidade estimada do estimulante"></div>
+    </div>
+    <p class="lay-lead" id="layLead" aria-live="polite"></p>
+    <div class="lay-cols">
+      <div class="lay-col"><h3>No seu corpo</h3><ul id="layBody"></ul></div>
+      <div class="lay-col"><h3>O que muita gente costuma sentir</h3><ul id="layFeel"></ul></div>
+      <div class="lay-col alert"><h3>Fique de olho</h3><ul id="layWatch"></ul></div>
+    </div>
+    <p class="lay-foot">Descrição baseada no que é comum em média, em linguagem simples. Cada pessoa sente diferente, e não sentir nada (ou sentir mais) não significa que algo está errado. Dúvidas sobre dose ou horário são para o médico.</p>
+  </section>
+
+  <!-- TIMELINE + SINAPSE -->
+  <section class="two">
+    <div class="panel" aria-labelledby="h-tl">
+      <div class="panel-head"><h2 id="h-tl">Linha do tempo de efeitos</h2><span class="approx">≈ qualitativo</span></div>
+      <p class="muted small" style="margin-bottom:12px">Faixas com bordas difusas representam incerteza. Elas resumem a literatura clínica e não saem do modelo de concentração. Referência: última dose de LDX.</p>
+      <div class="tl" id="tl"></div>
+      <div class="tl-axis" id="tlAxis"></div>
+      <div class="callout small" style="margin-top:14px">
+        <b>Atomoxetina não age como estimulante.</b> O nível plasmático sobe e cai em horas, mas o benefício clínico depende de adaptações noradrenérgicas que se constroem com uso diário contínuo: alguma resposta pode aparecer em 1–4 semanas e o efeito pleno costuma levar 6–12 semanas <span class="approx">≈</span>. O pico plasmático da ATX não marca o “pico de efeito”.
+      </div>
+    </div>
+
+    <div class="panel" aria-labelledby="h-syn">
+      <div class="panel-head"><h2 id="h-syn">Sinapse (esquema)</h2>
+        <label class="check small"><input type="checkbox" id="synSync" checked> Intensidade = concentração atual</label></div>
+      <div class="syn-box"><canvas id="syn" aria-label="Animação esquemática da sinapse catecolaminérgica"></canvas></div>
+      <div class="chart-tools">
+        <label class="check small"><input type="checkbox" id="synAmp" checked> Anfetamina</label>
+        <label class="check small"><input type="checkbox" id="synAtx" checked> Atomoxetina</label>
+        <span class="mono small muted" id="synLvl"></span>
+      </div>
+      <div class="syn-key">
+        <span><i class="dot" style="background:var(--ldx)"></i>Dopamina (DA)</span>
+        <span><i class="dot" style="background:var(--atx)"></i>Noradrenalina (NE)</span>
+        <span><i class="dot" style="background:var(--amp)"></i>Anfetamina</span>
+        <span><i class="dot" style="background:var(--atx-alt);border-radius:1px"></i>Atomoxetina</span>
+      </div>
+      <p class="small muted" style="margin-top:8px" id="synText">A anfetamina entra no terminal pelos transportadores DAT/NET, ativa TAAR1, perturba o VMAT2 e esvazia as vesículas no citosol. Os transportadores passam a funcionar ao contrário e liberam DA e NE na fenda. A atomoxetina ocupa seletivamente o NET e bloqueia a recaptação de NE. No córtex pré-frontal, onde o NET também recapta DA, isso eleva a DA local.</p>
+    </div>
+  </section>
+
+  <!-- INTERAÇÃO + CONCENTRAÇÃO VS EFEITO -->
+  <section class="two">
+    <div class="panel prose" aria-labelledby="h-int">
+      <h2 id="h-int">Interação LDX + ATX</h2>
+      <p><b>Farmacocinética:</b> não encontramos estudo publicado que medisse a PK da coadministração lisdexamfetamina + atomoxetina. A evidência é limitada, e o modelo assume <b>nenhuma interação PK</b>.</p>
+      <ul>
+        <li>A atomoxetina é <b>substrato</b> de CYP2D6. Os dados clínicos não mostram inibição relevante de CYP2D6 por ela (Sauer et al., 2005).</li>
+        <li>A d-anfetamina tem metabolismo hepático parcial (em parte via CYP2D6) e grande excreção renal inalterada. As bulas de anfetamina alertam que inibidores de CYP2D6 podem aumentar a exposição. A atomoxetina não é classificada como tal.</li>
+        <li>Já a PK da própria atomoxetina muda muito com inibidores fortes de CYP2D6 (fluoxetina, paroxetina, bupropiona), que deixam um EM parecido com um PM. Use o toggle CYP2D6 para ver esse extremo.</li>
+      </ul>
+      <p><b>Farmacodinâmica:</b> as duas aumentam a sinalização noradrenérgica. Efeitos aditivos sobre frequência cardíaca e pressão arterial são esperados, e as duas bulas trazem advertências cardiovasculares. A combinação é usada na prática clínica, mas com poucos ensaios controlados.</p>
+    </div>
+    <div class="panel prose" aria-labelledby="h-ce">
+      <h2 id="h-ce">Concentração ≠ efeito</h2>
+      <p>O gráfico mostra o que dá para modelar: <b>concentração no plasma</b>. O efeito clínico depende de outros fatores:</p>
+      <ul>
+        <li>chegada ao cérebro e ocupação de transportadores, que segue o plasma com atraso;</li>
+        <li><b>tolerância aguda</b>: o efeito da anfetamina tende a cair antes da concentração, com histerese anti-horária;</li>
+        <li>sono, alimentação, estresse, tarefa e expectativa;</li>
+        <li>para a ATX, adaptação neuronal crônica em escala de semanas.</li>
+      </ul>
+      <p class="muted small">Por isso a linha do tempo de efeitos aparece separada e em faixas, sem curva de “efeito subjetivo” com falsa precisão.</p>
+    </div>
+  </section>
+
+  <!-- AVANÇADO -->
+  <section class="panel">
+    <details class="adv" id="adv">
+      <summary>Painel avançado · parâmetros do modelo</summary>
+      <p class="muted small" style="margin-top:8px">Os padrões vêm da literatura (veja a tabela abaixo). Mexer aqui mostra a sensibilidade do modelo, não o seu caso pessoal.</p>
+      <div class="sliders" id="sliders"></div>
+      <div class="chart-tools"><button class="btn" id="resetParams">Restaurar padrões da literatura</button></div>
+    </details>
+  </section>
+
+  <!-- MODELO -->
+  <section class="panel" aria-labelledby="h-model">
+    <div class="panel-head"><h2 id="h-model">Modelo e parâmetros</h2></div>
+    <div class="two" style="margin-bottom:16px">
+      <div class="prose small">
+        <h3>Atomoxetina: 1 compartimento, absorção de 1ª ordem (Bateman)</h3>
+        <p class="mono">C(t) = F·D·k<sub>a</sub> / [V<sub>d</sub>(k<sub>a</sub>−k<sub>el</sub>)] · (e<sup>−k<sub>el</sub>t</sup> − e<sup>−k<sub>a</sub>t</sup>)</p>
+        <p class="muted">Com várias doses, as contribuições de cada dose são somadas (superposição linear).</p>
+      </div>
+      <div class="prose small">
+        <h3>LDX: cascata de 2 estágios</h3>
+        <p class="mono">Intestino →(k<sub>a</sub>)→ LDX plasma →(k<sub>conv</sub>, hidrólise em hemácias)→ d-anfetamina →(k<sub>el</sub>(pH))→</p>
+        <p class="muted">A solução analítica da cadeia (3 exponenciais) gera a subida mais lenta e o pico único e achatado da d-anfetamina. As quantidades são expressas em equivalentes molares; 30 mg de dimesilato ≈ 17,3 mg de LDX base ≈ 8,9 mg de d-anfetamina base.</p>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Parâmetro</th><th>Valor padrão</th><th>Fonte / status</th></tr></thead>
+        <tbody>
+          <tr><td>LDX T<sub>max</sub> (intacta)</td><td class="num">~1 h</td><td>Bula Vyvanse (FDA). Modelo: k<sub>a</sub> 1,2 h⁻¹ <span class="approx">≈ calibrado</span></td></tr>
+          <tr><td>LDX t½ (conversão)</td><td class="num">&lt;1 h → k<sub>conv</sub> 1,4 h⁻¹</td><td>Bula Vyvanse; Hutson 2014 (peptidases eritrocitárias) <span class="approx">≈</span></td></tr>
+          <tr><td>d-anfetamina T<sub>max</sub></td><td class="num">~3,5–3,8 h (jejum)<br>~4,7 h (alimentado)</td><td>Bula Vyvanse; Krishnan 2008 (efeito alimentar)</td></tr>
+          <tr><td>d-anfetamina t½</td><td class="num">~11 h (10–12 h)</td><td>Bula Vyvanse (adultos); varia ~7–34 h conforme pH urinário <span class="approx">≈</span></td></tr>
+          <tr><td>d-anfetamina C<sub>max</sub> (30 mg)</td><td class="num">≈ 30–40 ng/mL</td><td>Extrapolado por proporcionalidade (30–70 mg) a partir de ~80 ng/mL com 70 mg em adultos. Em crianças é mais alto (menor V<sub>d</sub>) <span class="approx">≈</span></td></tr>
+          <tr><td>V<sub>d</sub> d-anfetamina</td><td class="num">3,0 L/kg</td><td><span class="approx">≈</span> calibrado para C<sub>max</sub> ~34 ng/mL (literatura: ~3–5 L/kg)</td></tr>
+          <tr><td>V<sub>d</sub> LDX intacta</td><td class="num">4,0 L/kg</td><td><span class="approx">≈</span> baixa confiança. Gera C<sub>max</sub> da ordem de 20 ng/mL, apenas ilustrativo</td></tr>
+          <tr><td>F (LDX → d-anfetamina)</td><td class="num">0,96</td><td>Bula: ~96% da dose recuperada na urina <span class="approx">≈</span></td></tr>
+          <tr><td>ATX T<sub>max</sub></td><td class="num">1–2 h</td><td>Bula Strattera. Modelo: k<sub>a</sub> 1,8 h⁻¹ <span class="approx">≈</span></td></tr>
+          <tr><td>ATX t½</td><td class="num">5,2 h (EM) · 21,6 h (PM)</td><td>Bula Strattera; Sauer 2005</td></tr>
+          <tr><td>ATX F</td><td class="num">0,63 (EM) · 0,94 (PM)</td><td>Bula Strattera</td></tr>
+          <tr><td>ATX V<sub>d</sub></td><td class="num">0,85 L/kg</td><td>Bula Strattera. Ligação a proteínas ~98% (albumina)</td></tr>
+          <tr><td>ATX com alimento</td><td class="num">C<sub>max</sub> −37%, T<sub>max</sub> +3 h</td><td>Bula Strattera (refeição gordurosa); AUC inalterada</td></tr>
+          <tr><td>ATX estado estacionário</td><td class="num">~1–2 d (EM) · ~4–5 d (PM)</td><td>≈ 5 meias-vidas. PM: AUC ~10× e C<sub>max</sub> ~5× no estado estacionário (bula)</td></tr>
+          <tr><td>Metabólito 4-OH-atomoxetina</td><td class="num">—</td><td>Equipotente ao fármaco, mas circula em concentração muito baixa (glucuronidado). Não modelado</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- REFERÊNCIAS -->
+  <section class="panel" aria-labelledby="h-ref">
+    <div class="panel-head"><h2 id="h-ref">Referências</h2><span class="muted small">Links de busca no PubMed onde o PMID não foi verificado</span></div>
+    <ol class="refs">
+      <li>FDA. <i>Vyvanse (lisdexamfetamine dimesylate) — Prescribing Information</i>, NDA 021977. <a href="https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&amp;ApplNo=021977" target="_blank" rel="noopener">Drugs@FDA</a> · <a href="https://dailymed.nlm.nih.gov/dailymed/search.cfm?labeltype=all&amp;query=vyvanse" target="_blank" rel="noopener">DailyMed</a></li>
+      <li>FDA. <i>Strattera (atomoxetine) — Prescribing Information</i>, NDA 021411. <a href="https://www.accessdata.fda.gov/scripts/cder/daf/index.cfm?event=overview.process&amp;ApplNo=021411" target="_blank" rel="noopener">Drugs@FDA</a> · <a href="https://dailymed.nlm.nih.gov/dailymed/search.cfm?labeltype=all&amp;query=strattera" target="_blank" rel="noopener">DailyMed</a></li>
+      <li>Ermer JC, Pennick M, Frick G. Lisdexamfetamine dimesylate: prodrug delivery, amphetamine exposure and duration of efficacy. <i>Clin Drug Investig</i> 2016;36(5):341–356. <a href="https://pubmed.ncbi.nlm.nih.gov/27021968/" target="_blank" rel="noopener">PMID 27021968</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4823324/" target="_blank" rel="noopener">PMC4823324</a></li>
+      <li>Hutson PH, Pennick M, Secker R. Preclinical pharmacokinetics, pharmacology and toxicology of lisdexamfetamine. <i>Neuropharmacology</i> 2014;87:41–50. <a href="https://pubmed.ncbi.nlm.nih.gov/24594478/" target="_blank" rel="noopener">PMID 24594478</a></li>
+      <li>Krishnan S, Zhang Y. Relative bioavailability of lisdexamfetamine 70-mg capsules in fasted and fed healthy adult volunteers. <i>J Clin Pharmacol</i> 2008;48(3):293–302. <a href="https://doi.org/10.1177/0091270007310381" target="_blank" rel="noopener">doi:10.1177/0091270007310381</a></li>
+      <li>Krishnan S et al. Multiple daily-dose pharmacokinetics of lisdexamfetamine dimesylate in healthy adult volunteers. <i>Curr Med Res Opin</i> 2008. <a href="https://pubmed.ncbi.nlm.nih.gov/18021493/" target="_blank" rel="noopener">PMID 18021493</a> <span class="note">(identificador obtido de registro bibliográfico secundário)</span></li>
+      <li>Sauer JM, Ring BJ, Witcher JW. Clinical pharmacokinetics of atomoxetine. <i>Clin Pharmacokinet</i> 2005;44(6):571–590. <a href="https://pubmed.ncbi.nlm.nih.gov/?term=Sauer+Ring+Witcher+Clinical+pharmacokinetics+of+atomoxetine" target="_blank" rel="noopener">busca PubMed</a></li>
+      <li>Brown JT et al. CPIC guideline for CYP2D6 genotype and atomoxetine therapy. <i>Clin Pharmacol Ther</i> 2019. <a href="https://pubmed.ncbi.nlm.nih.gov/?term=CPIC+guideline+CYP2D6+atomoxetine" target="_blank" rel="noopener">busca PubMed</a></li>
+      <li>Influência do pH urinário na excreção de anfetamina (Beckett &amp; Rowland, 1965, e trabalhos subsequentes). <a href="https://pubmed.ncbi.nlm.nih.gov/?term=Beckett+Rowland+urinary+excretion+amphetamine+pH" target="_blank" rel="noopener">busca PubMed</a></li>
+      <li>Dittmann RW et al. Efficacy and safety of lisdexamfetamine dimesylate and atomoxetine in children and adolescents with ADHD: head-to-head study. <i>CNS Drugs</i> 2013. <a href="https://pubmed.ncbi.nlm.nih.gov/23959815/" target="_blank" rel="noopener">PMID 23959815</a> <span class="note">(compara eficácia; não é estudo de interação)</span></li>
+    </ol>
+  </section>
+
+  <footer>Uso educacional. Os modelos usam médias populacionais e não preveem a resposta de nenhuma pessoa específica.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<script>
+"use strict";
+/* =====================================================================
+   PARÂMETROS FARMACOCINÉTICOS (padrões)
+   Cada valor traz a origem. "≈" = estimativa/calibração, não medida direta.
+   ===================================================================== */
+const MW = { LDX_DIMESYLATE: 455.6, LDX_BASE: 263.4, DAMPH_BASE: 135.2 }; // g/mol
+const DEFAULTS = {
+  ldx: {
+    doseMg: 30,           // dose prescrita (dimesilato)
+    F: 0.96,              // ≈ fração absorvida/convertida; bula Vyvanse: ~96% da dose recuperada na urina
+    ka: 1.2,              // h⁻¹ ≈ calibrado p/ Tmax LDX intacta ~1 h (bula Vyvanse)
+    kconv: 1.4,           // h⁻¹ ≈ t½ LDX <1 h (bula Vyvanse); hidrólise rate-limited em hemácias (Hutson 2014; Ermer 2016)
+    VdLdx: 4.0,           // L/kg ≈ baixa confiança; apenas para escala da curva de LDX intacta
+    VdAmp: 3.0,           // L/kg ≈ calibrado p/ Cmax d-anf ~34 ng/mL (proporcional a ~80 ng/mL c/ 70 mg em adultos)
+    pH: 6.0,              // pH urinário "típico" ≈
+    foodKaFactor: 0.58    // ≈ ka 1,2→0,7 reproduz Tmax d-anf 3,8→4,7 h com alimento (bula Vyvanse)
+  },
+  atx: {
+    doseMg: 80,           // dose expressa como atomoxetina base (bula Strattera)
+    ka: 1.8,              // h⁻¹ ≈ calibrado p/ Tmax 1–2 h (bula Strattera)
+    Vd: 0.85,             // L/kg (bula Strattera)
+    EM: { F: 0.63, thalf: 5.2 },   // bula Strattera; Sauer 2005
+    PM: { F: 0.94, thalf: 21.6 },  // bula Strattera; Sauer 2005
+    foodKaFactor: 0.167   // ≈ ka 1,8→0,3 reproduz Cmax −37% e Tmax +~3 h (bula Strattera)
+  }
+};
+
+/* Meia-vida da d-anfetamina em função do pH urinário (≈).
+   Pontos de ancoragem: faixa ~7–34 h descrita para anfetamina conforme pH (bulas de anfetamina,
+   Beckett & Rowland); ~11 h em pH ~6 (bula Vyvanse, adultos). Interpolação log-linear. */
+const PH_ANCHORS = [[4.5,6.5],[5.0,7],[6.0,11],[7.0,18],[8.0,34]];
+function ampHalfLifeFromPH(pH){
+  const a=PH_ANCHORS;
+  if(pH<=a[0][0]) return a[0][1];
+  if(pH>=a[a.length-1][0]) return a[a.length-1][1];
+  for(let i=0;i<a.length-1;i++){
+    const [x0,y0]=a[i],[x1,y1]=a[i+1];
+    if(pH>=x0&&pH<=x1){const f=(pH-x0)/(x1-x0);return Math.exp(Math.log(y0)+f*(Math.log(y1)-Math.log(y0)));}
+  }
+}
+
+/* ---------------- estado ---------------- */
+const P = structuredClone(DEFAULTS);
+P.ldx.ampThalf = ampHalfLifeFromPH(P.ldx.pH);
+const S = {
+  cyp: "EM", days: 1, weight: 70, food: false, compare: true,
+  timeMode: "real", simT: 6, tLdx: null, tAtx: null
+};
+
+/* ---------------- modelos ---------------- */
+// Bateman: quantidade no compartimento central após dose oral (absorção 1ª ordem)
+function bateman(A0, ka, k, t){
+  if(t<=0) return 0;
+  if(Math.abs(ka-k)<1e-6) return A0*ka*t*Math.exp(-k*t);   // limite ka→k
+  return A0*ka/(ka-k)*(Math.exp(-k*t)-Math.exp(-ka*t));
+}
+// Cadeia linear de 3 compartimentos (intestino → LDX → d-anf → eliminação): quantidade no 3º
+function chain3(A0, k1, k2, k3, t){
+  if(t<=0) return 0;
+  // evita singularidade quando taxas coincidem (perturbação mínima)
+  if(Math.abs(k1-k2)<1e-4) k2+=2e-4;
+  if(Math.abs(k1-k3)<1e-4) k3+=2e-4;
+  if(Math.abs(k2-k3)<1e-4) k3+=3e-4;
+  const e=Math.exp;
+  return A0*k1*k2*( e(-k1*t)/((k2-k1)*(k3-k1)) + e(-k2*t)/((k1-k2)*(k3-k2)) + e(-k3*t)/((k1-k3)*(k2-k3)) );
+}
+function ldxRates(){
+  const ka=P.ldx.ka*(S.food?P.ldx.foodKaFactor:1);
+  return {ka, kc:P.ldx.kconv, ke:Math.LN2/P.ldx.ampThalf};
+}
+function atxRates(phen){
+  const ph=P.atx[phen];
+  return {ka:P.atx.ka*(S.food?P.atx.foodKaFactor:1), ke:Math.LN2/ph.thalf, F:ph.F};
+}
+// horários de dose (h relativos a t0) — superposição para multi-dose
+function doseTimes(offset){ const a=[]; for(let i=0;i<S.days;i++) a.push(offset+24*i); return a; }
+
+function concLDX(t){ // ng/mL de LDX (base)
+  const {ka,kc}=ldxRates(), W=S.weight;
+  const A0=P.ldx.doseMg*MW.LDX_BASE/MW.LDX_DIMESYLATE*P.ldx.F;
+  let s=0; for(const td of G.ldxDoses) s+=bateman(A0,ka,kc,t-td);
+  return s/(P.ldx.VdLdx*W)*1000;
+}
+function concAMP(t){ // ng/mL de d-anfetamina (base)
+  const {ka,kc,ke}=ldxRates(), W=S.weight;
+  const A0=P.ldx.doseMg*MW.DAMPH_BASE/MW.LDX_DIMESYLATE*P.ldx.F; // 30 mg → ~8,9 mg d-anf base
+  let s=0; for(const td of G.ldxDoses) s+=chain3(A0,ka,kc,ke,t-td);
+  return s/(P.ldx.VdAmp*W)*1000;
+}
+function concATX(t, phen){ // ng/mL de atomoxetina
+  const {ka,ke,F}=atxRates(phen), W=S.weight;
+  const A0=P.atx.doseMg*F;
+  let s=0; for(const td of G.atxDoses) s+=bateman(A0,ka,ke,t-td);
+  return s/(P.atx.Vd*W)*1000;
+}
+
+/* ---------------- tempo ---------------- */
+const G = { t0:0, ldxDoses:[0], atxDoses:[0], xmax:48, series:null, peaks:{} };
+const HOUR=3600e3;
+function pad(n){return String(n).padStart(2,"0");}
+function toLocalInput(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+function fmtClock(ms){const d=new Date(ms);return `${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+const WD=["dom","seg","ter","qua","qui","sex","sáb"];
+function fmtDayClock(ms){const d=new Date(ms);return `${WD[d.getDay()]} ${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+function fmtDur(h){ if(h<0) return "−"+fmtDur(-h); const hh=Math.floor(h), mm=Math.floor((h-hh)*60); return `${hh}h${pad(mm)}`; }
+function nowRelHours(){ return S.timeMode==="sim" ? S.simT : (Date.now()-G.t0)/HOUR; }
+
+function recomputeTimes(){
+  const a=new Date(S.tLdx).getTime(), b=new Date(S.tAtx).getTime();
+  G.t0=Math.min(a,b);
+  G.ldxDoses=doseTimes((a-G.t0)/HOUR);
+  G.atxDoses=doseTimes((b-G.t0)/HOUR);
+  const last=Math.max(G.ldxDoses.at(-1),G.atxDoses.at(-1));
+  G.xmax=Math.max(48, Math.ceil((last+30)/6)*6);
+}
+
+/* ---------------- séries ---------------- */
+function buildSeries(){
+  recomputeTimes();
+  const step = G.xmax<=72?0.05:0.1;
+  const alt = S.cyp==="EM"?"PM":"EM";
+  const ldx=[],amp=[],atx=[],atxAlt=[];
+  for(let t=0;t<=G.xmax+1e-9;t+=step){
+    const x=+t.toFixed(3);
+    ldx.push({x,y:concLDX(x)}); amp.push({x,y:concAMP(x)});
+    atx.push({x,y:concATX(x,S.cyp)}); atxAlt.push({x,y:concATX(x,alt)});
+  }
+  const mx=a=>a.reduce((m,p)=>p.y>m?p.y:m,0);
+  G.series={ldx,amp,atx,atxAlt};
+  G.peaks={ldx:mx(ldx),amp:mx(amp),atx:mx(atx),atxAlt:mx(atxAlt)};
+}
+
+/* ---------------- gráfico ---------------- */
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const COL={ldx:css("--ldx"),amp:css("--amp"),atx:css("--atx"),alt:css("--atx-alt"),fg:css("--fg"),muted:css("--muted"),line:css("--line"),now:css("--now"),warn:css("--warn")};
+function hexA(hex,a){const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;}
+
+// Plugin: marcador AGORA + bolinhas nas curvas + marcas de dose
+let pulse=0;
+const nowPlugin={
+  id:"nowMarker",
+  afterDatasetsDraw(chart){
+    const {ctx,chartArea:ca,scales:{x,yA,yB}}=chart;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(ca.left,ca.top,ca.right-ca.left,ca.bottom-ca.top); ctx.clip();
+    // marcas de dose
+    ctx.font="10px "+css("--f-mono");
+    const mark=(t,c,lab,row)=>{const px=x.getPixelForValue(t); if(px<ca.left-2||px>ca.right+2)return;
+      ctx.strokeStyle=hexA(c,.5); ctx.setLineDash([2,3]); ctx.beginPath(); ctx.moveTo(px,ca.top); ctx.lineTo(px,ca.bottom); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=c; ctx.fillText(lab,px+4,ca.top+12+row*12);};
+    G.ldxDoses.forEach(t=>mark(t,COL.amp,"LDX",0));
+    G.atxDoses.forEach(t=>mark(t,COL.atx,"ATX",1));
+    // AGORA
+    const tn=nowRelHours(); const px=x.getPixelForValue(tn);
+    if(px>=ca.left&&px<=ca.right){
+      const glow=.25+.25*Math.sin(pulse);
+      ctx.fillStyle=`rgba(255,255,255,${glow*.18})`; ctx.fillRect(px-7,ca.top,14,ca.bottom-ca.top);
+      ctx.strokeStyle=COL.now; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(px,ca.top); ctx.lineTo(px,ca.bottom); ctx.stroke();
+      const dots=[];
+      if(chart.isDatasetVisible(1)) dots.push([yA,concAMP(tn),COL.amp]);
+      if(chart.isDatasetVisible(0)) dots.push([yA,concLDX(tn),COL.ldx]);
+      if(chart.isDatasetVisible(2)) dots.push([yB,concATX(tn,S.cyp),COL.atx]);
+      for(const [sc,v,c] of dots){ const py=sc.getPixelForValue(v);
+        ctx.fillStyle=hexA(c,.25+glow*.6); ctx.beginPath(); ctx.arc(px,py,7+3*Math.sin(pulse),0,7); ctx.fill();
+        ctx.fillStyle=c; ctx.beginPath(); ctx.arc(px,py,3.5,0,7); ctx.fill(); }
+      ctx.fillStyle=COL.now; ctx.font="600 11px "+css("--f-mono");
+      const lab=S.timeMode==="sim"?"SIMULADO":"AGORA"; const w=ctx.measureText(lab).width;
+      const lx=Math.min(px+6,ca.right-w-4); ctx.fillText(lab,lx,ca.bottom-8);
+    } else {
+      ctx.fillStyle=COL.warn; ctx.font="11px "+css("--f-mono");
+      const t= tn<x.min?"◂ AGORA antes da janela":"AGORA após a janela ▸";
+      const w=ctx.measureText(t).width; ctx.fillText(t, tn<x.min?ca.left+6:ca.right-w-6, ca.bottom-8);
+    }
+    ctx.restore();
+  }
+};
+
+let chart;
+function makeChart(){
+  const gridC=hexA("#8cb4be",.08);
+  chart=new Chart(document.getElementById("chart"),{
+    type:"line",
+    data:{datasets:[
+      {label:"LDX intacta",data:[],yAxisID:"yA",borderColor:COL.ldx,backgroundColor:hexA(COL.ldx,.06),fill:true,borderWidth:1.6},
+      {label:"d-anfetamina",data:[],yAxisID:"yA",borderColor:COL.amp,backgroundColor:hexA(COL.amp,.10),fill:true,borderWidth:2.4},
+      {label:"Atomoxetina",data:[],yAxisID:"yB",borderColor:COL.atx,backgroundColor:hexA(COL.atx,.07),fill:true,borderWidth:2.2},
+      {label:"ATX (oposto)",data:[],yAxisID:"yB",borderColor:COL.alt,borderDash:[6,4],borderWidth:1.6,fill:false}
+    ]},
+    options:{
+      animation:false, parsing:false, normalized:true, maintainAspectRatio:false,
+      elements:{point:{radius:0,hoverRadius:4},line:{tension:0}},
+      interaction:{mode:"index",intersect:false},
+      plugins:{
+        legend:{display:false},
+        decimation:{enabled:false},
+        tooltip:{backgroundColor:"#0c1417",borderColor:COL.line,borderWidth:1,titleFont:{family:"JetBrains Mono"},bodyFont:{family:"JetBrains Mono",size:11},
+          callbacks:{
+            title:it=>{const t=it[0].parsed.x; return `${fmtDayClock(G.t0+t*HOUR)}  (+${fmtDur(t)})`;},
+            label:it=>` ${it.dataset.label}: ${it.parsed.y.toFixed(it.datasetIndex>=2?0:1)} ng/mL`
+          }},
+        zoom:{
+          limits:{x:{min:0,max:"original",minRange:2}},
+          pan:{enabled:true,mode:"x"},
+          zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:"x"}
+        }
+      },
+      scales:{
+        x:{type:"linear",min:0,max:48,grid:{color:gridC},border:{color:COL.line},
+          ticks:{color:COL.muted,font:{family:"JetBrains Mono",size:10},maxRotation:0,autoSkipPadding:14,
+            callback:v=>[`+${Math.round(v)}h`, fmtClock(G.t0+v*HOUR)]}},
+        yA:{position:"left",beginAtZero:true,grid:{color:gridC},border:{color:COL.line},
+          title:{display:true,text:"LDX · d-anf (ng/mL)",color:COL.amp,font:{family:"JetBrains Mono",size:10}},
+          ticks:{color:COL.muted,font:{family:"JetBrains Mono",size:10}}},
+        yB:{position:"right",beginAtZero:true,grid:{display:false},border:{color:COL.line},
+          title:{display:true,text:"ATX (ng/mL)",color:COL.atx,font:{family:"JetBrains Mono",size:10}},
+          ticks:{color:COL.muted,font:{family:"JetBrains Mono",size:10}}}
+      }
+    },
+    plugins:[nowPlugin]
+  });
+}
+function updateChart(resetRange){
+  buildSeries();
+  const d=chart.data.datasets;
+  d[0].data=G.series.ldx; d[1].data=G.series.amp; d[2].data=G.series.atx; d[3].data=G.series.atxAlt;
+  d[2].label=`Atomoxetina (${S.cyp})`; d[3].label=`ATX (${S.cyp==="EM"?"PM":"EM"}, comparação)`;
+  chart.setDatasetVisibility(3, S.compare && legendState[3]);
+  chart.options.scales.x.max=G.xmax;
+  if(resetRange){ chart.resetZoom?.(); chart.options.scales.x.min=0; chart.options.scales.x.max=G.xmax; }
+  chart.options.plugins.zoom.limits.x.max=G.xmax;
+  chart.update("none");
+  document.getElementById("scrub").max=G.xmax;
+  renderLegend();
+}
+
+/* legenda própria (clicável) */
+const legendState=[true,true,true,true];
+function renderLegend(){
+  const items=[["LDX intacta",COL.ldx,0],["d-anfetamina",COL.amp,1],[`Atomoxetina (${S.cyp})`,COL.atx,2]];
+  if(S.compare) items.push([`ATX ${S.cyp==="EM"?"PM":"EM"} (comparação)`,COL.alt,3,true]);
+  const el=document.getElementById("legend"); el.innerHTML="";
+  for(const [lab,c,i,dash] of items){
+    const b=document.createElement("button"); b.setAttribute("aria-pressed",legendState[i]);
+    b.innerHTML=`<span class="sw${dash?" dash":""}" style="background:${c}"></span>${lab}`;
+    b.onclick=()=>{legendState[i]=!legendState[i]; chart.setDatasetVisibility(i,legendState[i]&&(i!==3||S.compare)); chart.update("none"); renderLegend();};
+    el.appendChild(b);
+  }
+}
+
+/* ---------------- fases & explicações ---------------- */
+function lastDoseBefore(doses,t){let r=null;for(const d of doses) if(d<=t) r=d; return r;}
+function localPeak(f,td){let m=0,tm=td;for(let t=td;t<=td+24;t+=0.05){const v=f(t);if(v>m){m=v;tm=t;}}return {m,tm};}
+function phaseOf(kind,t){
+  const doses=kind==="atx"?G.atxDoses:G.ldxDoses;
+  const td=lastDoseBefore(doses,t);
+  if(td===null) return {key:"pre",label:"pré-dose"};
+  const f=kind==="amp"?concAMP:kind==="ldx"?concLDX:(x=>concATX(x,S.cyp));
+  const c=f(t), slope=f(t+0.05)-f(t-0.05);
+  const {m,tm}=localPeak(f,td);
+  const frac=m>0?c/m:0, since=t-td;
+  if(kind==="ldx"){
+    if(slope>0) return {key:"abs",label:"absorção",since};
+    if(frac<0.03) return {key:"gone",label:"depurada",since};
+    return {key:"conv",label:"conversão",since};
+  }
+  if(slope>0&&frac<0.92) return {key:kind==="amp"?(since<1?"abs":"conv"):"abs",label:kind==="amp"?(since<1?"absorção":"conversão"):"absorção",since};
+  if(frac>=0.92) return {key:"peak",label:"pico / platô",since};
+  const thalf=kind==="amp"?P.ldx.ampThalf:P.atx[S.cyp].thalf;
+  return {key:"elim",label:"eliminação",since,halves:(t-tm)/thalf};
+}
+function explainAmp(ph){
+  const th=P.ldx.ampThalf.toFixed(1);
+  switch(ph.key){
+    case "pre": return "<b>Lisdexamfetamina:</b> antes da ingestão. Nada no plasma.";
+    case "abs": return "<b>Lisdexamfetamina, absorção:</b> o pró-fármaco intacto é absorvido no intestino delgado, provavelmente via transportador de peptídeos PEPT1. LDX é praticamente inativa; a d-anfetamina ainda está baixa.";
+    case "conv": return "<b>Lisdexamfetamina, conversão:</b> peptidases das hemácias clivam a L-lisina e liberam d-anfetamina. Essa hidrólise limita a velocidade e por isso a subida é gradual, sem pico abrupto.";
+    case "peak": return `<b>d-anfetamina perto do pico</b> (T<sub>max</sub> típico ~3,5–4 h). Conversão e eliminação estão quase em equilíbrio, e a curva achatada mantém o platô por algumas horas.`;
+    case "elim": return `<b>d-anfetamina, eliminação:</b> a conversão terminou. A queda segue a eliminação renal (t½ ≈ ${th} h no pH urinário atual), cerca de ${Math.max(0,ph.halves).toFixed(1)} meia-vida(s) após o pico. Urina ácida acelera a queda; urina alcalina retarda.`;
+  }
+}
+function explainAtx(ph){
+  const th=P.atx[S.cyp].thalf.toFixed(1);
+  const cyp=S.cyp==="EM"?"Em metabolizadores extensivos, o CYP2D6 converte rapidamente em 4-hidroxiatomoxetina (ativa, mas logo glucuronidada).":"Em metabolizadores pobres, o CYP2D6 quase não funciona: a depuração cai muito e a exposição (AUC) chega a ~10× a de um EM.";
+  switch(ph.key){
+    case "pre": return "<b>Atomoxetina:</b> antes da ingestão.";
+    case "abs": return `<b>Atomoxetina, absorção:</b> absorção oral rápida (T<sub>max</sub> 1–2 h em jejum). ${S.food?"Com alimento, o pico fica mais baixo e mais tardio, mas a quantidade total absorvida é a mesma.":""}`;
+    case "peak": return `<b>Atomoxetina perto do pico plasmático.</b> ~98% ligada à albumina. ${cyp}`;
+    case "elim": return `<b>Atomoxetina, eliminação:</b> t½ ≈ ${th} h (${S.cyp}), cerca de ${Math.max(0,ph.halves).toFixed(1)} meia-vida(s) após o pico. ${cyp}`;
+  }
+}
+
+/* ---------------- relógio & atualização ---------------- */
+function setRO(id,val,unit,frac,ph,dec){
+  document.getElementById("v"+id).innerHTML=`${val.toFixed(dec)} <small>${unit}</small>`;
+  document.getElementById("p"+id).textContent=`${Math.round(frac*100)}% do pico`;
+  document.getElementById("b"+id).style.width=Math.min(100,frac*100)+"%";
+  document.getElementById("ph"+id).textContent=ph.label;
+}
+let lastExplain="";
+function tick(){
+  const now=new Date();
+  const tn=nowRelHours();
+  const shown= S.timeMode==="sim" ? new Date(G.t0+tn*HOUR) : now;
+  document.getElementById("clockT").textContent=`${pad(shown.getHours())}:${pad(shown.getMinutes())}:${pad(shown.getSeconds())}`;
+  document.getElementById("clockD").textContent=shown.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"short"});
+  const pill=document.getElementById("modePill");
+  pill.textContent=S.timeMode==="sim"?"SIMULADO":"TEMPO REAL"; pill.classList.toggle("sim",S.timeMode==="sim");
+
+  const cA=concAMP(tn), cL=concLDX(tn), cX=concATX(tn,S.cyp);
+  const pA=phaseOf("amp",tn), pL=phaseOf("ldx",tn), pX=phaseOf("atx",tn);
+  setRO("Amp",cA,"ng/mL",G.peaks.amp?cA/G.peaks.amp:0,pA,1);
+  setRO("Ldx",cL,"ng/mL",G.peaks.ldx?cL/G.peaks.ldx:0,pL,1);
+  setRO("Atx",cX,"ng/mL",G.peaks.atx?cX/G.peaks.atx:0,pX,0);
+  document.getElementById("nAtx").textContent=`Atomoxetina (${S.cyp})`;
+  const tdL=lastDoseBefore(G.ldxDoses,tn);
+  document.getElementById("sinceDose").textContent= tdL===null?"aguardando dose":`+${fmtDur(tn-tdL)} desde LDX`;
+  const ex=`<p>${explainAmp(pA)}</p><p>${explainAtx(pX)}</p>`;
+  if(ex!==lastExplain){document.getElementById("explain").innerHTML=ex;lastExplain=ex;}
+  if(S.timeMode==="sim") document.getElementById("scrubOut").textContent=`${fmtDayClock(G.t0+tn*HOUR)} · +${fmtDur(tn)}`;
+  updateTimelineNow(tn);
+  updateLay(tn);
+  syn.amp = G.peaks.amp? cA/G.peaks.amp:0;
+  syn.atx = G.peaks.atx? cX/G.peaks.atx:0;
+  document.getElementById("synLvl").textContent = document.getElementById("synSync").checked
+    ? `amph ${Math.round(syn.amp*100)}% · ATX ${Math.round(syn.atx*100)}% do pico` : "intensidade manual (máx.)";
+}
+
+/* ---------------- resumo em linguagem simples ---------------- */
+// Faixas por tempo desde a dose e fase do modelo. Efeito clínico da LDX: início ~1–2 h, duração até ~13–14 h
+// (bula Vyvanse). Sensações listadas = efeitos comuns descritos nas bulas, em linguagem leiga.
+function ampStage(tn){
+  const td=lastDoseBefore(G.ldxDoses,tn); if(td===null) return "pre";
+  const s=tn-td, ph=phaseOf("amp",tn), frac=G.peaks.amp?concAMP(tn)/G.peaks.amp:0;
+  if(s<1) return "abs";
+  if(ph.key==="conv"&&frac<0.6) return "rise";
+  if(s<9) return "peak";
+  if(s<14) return "fade";
+  return "tail";
+}
+const LAY={
+  pre:{lv:0,lead:"A dose de Venvanse ainda não foi tomada neste horário simulado. O corpo está sem o remédio.",
+    body:["Nenhuma quantidade do estimulante no sangue."],feel:["Seu estado normal, sem efeito do remédio."]},
+  abs:{lv:1,lead:"O Venvanse está sendo absorvido. Ele entra no sangue numa forma ainda “desligada”, que não age no cérebro.",
+    body:["A cápsula se dissolve e o intestino absorve a lisdexamfetamina.","No sangue, os glóbulos vermelhos começam a “cortar” a molécula e liberar a parte ativa (dextroanfetamina), devagar."],
+    feel:["Normalmente ainda quase nada.","Algumas pessoas notam boca um pouco seca ou menos fome."]},
+  rise:{lv:2,lead:"O remédio ativo está subindo no sangue e começando a agir no cérebro.",
+    body:["A dextroanfetamina aumenta a dopamina e a noradrenalina entre os neurônios, principalmente nas áreas de atenção e controle.","A subida é gradual porque a conversão é lenta. Por isso o efeito chega aos poucos, sem um “tranco”."],
+    feel:["Começo de mais foco e mais facilidade de iniciar tarefas.","Menos inquietação mental; menos vontade de comer.","Coração um pouco mais rápido, boca seca."]},
+  peak:{lv:3,lead:"Você está na fase mais forte e estável do estimulante, perto do nível máximo no sangue.",
+    body:["Concentração de dextroanfetamina perto do pico, com conversão e eliminação quase equilibradas.","Dopamina e noradrenalina elevadas nas sinapses; o corpo fica em modo de “alerta”."],
+    feel:["Atenção mais sustentada, menos distração, mais organização.","Apetite baixo; sede e boca seca.","Às vezes: tensão, mandíbula travada, irritabilidade ou ansiedade leve."]},
+  fade:{lv:2,lead:"O estimulante está saindo aos poucos. O nível no sangue ainda é razoável, mas o efeito costuma ir suavizando.",
+    body:["Os rins vão eliminando a dextroanfetamina (metade a cada ~11 h, dependendo da acidez da urina).","O cérebro se acostuma no mesmo dia, então o efeito percebido tende a cair antes do nível no sangue."],
+    feel:["Foco diminuindo; tarefas exigem mais esforço de novo.","A fome costuma voltar.","Algumas pessoas sentem cansaço, irritação ou um “rebote” no fim do efeito."]},
+  tail:{lv:1,lead:"Sobrou só um resto de estimulante no sangue, em geral abaixo do que dá efeito perceptível.",
+    body:["Ainda há dextroanfetamina circulando; leva cerca de 2–3 dias para sair por completo.","Com doses diárias, esse resto se soma à dose seguinte (acúmulo pequeno)."],
+    feel:["Na maior parte, seu estado normal.","Se for perto da hora de dormir, o resto ainda pode atrapalhar o sono."]}
+};
+function atxLay(tn){
+  const td=lastDoseBefore(G.atxDoses,tn);
+  if(td===null) return {body:"Atomoxetina ainda não tomada neste horário.",feel:null};
+  const frac=G.peaks.atx?concATX(tn,S.cyp)/G.peaks.atx:0, s=tn-td, pm=S.cyp==="PM";
+  const lvl=frac>0.6?"alto (perto do máximo do dia)":frac>0.25?"intermediário":"baixo";
+  const body=`Atomoxetina: nível no sangue ${lvl}. Ela bloqueia a recaptação de noradrenalina${pm?", e no seu perfil genético simulado (PM) fica muito mais tempo no corpo":""}.`;
+  const feel = frac>0.6&&s<6
+    ? "Atomoxetina no pico: é quando enjoo, dor de estômago, sono ou tontura são mais prováveis, sobretudo nas primeiras semanas ou sem comida."
+    : "A atomoxetina não dá uma “onda” a cada dose. Seu benefício vem do uso diário por semanas, então hoje ela quase não se sente como efeito.";
+  return {body,feel};
+}
+let lastLay="";
+function updateLay(tn){
+  const st=ampStage(tn), L=LAY[st], A=atxLay(tn);
+  const clock=new Date(G.t0+tn*HOUR).getHours();
+  const body=[...L.body, A.body];
+  const feel=[...L.feel]; if(A.feel) feel.push(A.feel);
+  const watch=[];
+  if(st==="rise"||st==="peak") watch.push("Os dois remédios aumentam a noradrenalina: coração acelerado e pressão um pouco mais alta são esperados. Palpitação forte, dor no peito ou falta de ar pedem atendimento imediato.");
+  if((st==="peak"||st==="fade"||st==="tail")&&(clock>=19||clock<3)) watch.push("É noite: o estimulante restante pode atrasar o sono.");
+  if(st==="peak"||st==="fade") watch.push("Lembre de beber água e de comer, mesmo sem fome.");
+  watch.push("Mudanças de humor, agitação intensa ou pensamentos de se machucar devem ser comunicados ao médico logo (alerta de bula, especialmente da atomoxetina).");
+  const key=st+"|"+body.join()+feel.join()+watch.join();
+  if(key===lastLay) return; lastLay=key;
+  document.getElementById("layLead").textContent=L.lead;
+  const li=a=>a.map(t=>`<li>${t}</li>`).join("");
+  document.getElementById("layBody").innerHTML=li(body);
+  document.getElementById("layFeel").innerHTML=li(feel);
+  document.getElementById("layWatch").innerHTML=li(watch);
+  const names=["nenhum","fraco","moderado","forte"];
+  document.getElementById("layMeter").innerHTML=`<span>estimulante:</span>${[1,2,3].map(i=>`<i class="${i<=L.lv?"on":""}"></i>`).join("")}<span>${names[L.lv]} ≈</span>`;
+}
+
+/* ---------------- timeline de efeitos (qualitativa) ---------------- */
+// Faixas aproximadas (h após a dose), literatura clínica LDX (bula Vyvanse: efeito até ~13–14 h em adultos;
+// início ~1,5–2 h em estudos de sala de aula/workplace). Bordas = incerteza.
+const TL_MAX=18;
+function grad(c, a, b, c2, d, alpha){ // trapézio difuso: sobe de a→b, platô b→c2, desce c2→d
+  const p=v=>(v/TL_MAX*100).toFixed(2)+"%";
+  return `linear-gradient(90deg, transparent ${p(a)}, ${hexA(c,alpha)} ${p(b)}, ${hexA(c,alpha)} ${p(c2)}, transparent ${p(d)})`;
+}
+function buildTimeline(){
+  const rows=[
+    {lbl:"d-anfetamina · plasma",c:COL.amp,bands:[[0.5,3,5,24*2,.55]],txt:"subida → pico ~3,5–4 h",xt:3.4},
+    {lbl:"LDX · efeito clínico ≈",c:COL.amp,bands:[[0.75,2.25,9,14.5,.85]],txt:"início ~1–2,5 h · platô · declínio 10–14 h",xt:2.4},
+    {lbl:"ATX · plasma (EM)",c:COL.atx,bands:[[0,1,2,12,.7]],txt:"pico 1–2 h",xt:1.1,id:"tlAtx"},
+    {lbl:"ATX · efeito agudo",c:COL.atx,bands:[],txt:"sem curva aguda de efeito: benefício constrói-se em semanas",xt:0.2,dim:true}
+  ];
+  const el=document.getElementById("tl"); el.innerHTML="";
+  rows.forEach((r,i)=>{
+    const row=document.createElement("div"); row.className="tl-row";
+    const lab=document.createElement("div"); lab.className="tl-lbl"; lab.textContent=r.lbl; lab.style.color=r.dim?COL.muted:COL.fg;
+    const tr=document.createElement("div"); tr.className="tl-track"; if(r.id) tr.id=r.id;
+    if(r.bands.length){const [a,b,c,d,al]=r.bands[0]; tr.style.background=grad(r.c,a,b,c,Math.min(d,TL_MAX*1.6),al)+", #0c1417";}
+    else tr.style.background=`repeating-linear-gradient(135deg, ${hexA(COL.atx,.08)} 0 6px, transparent 6px 12px), #0c1417`;
+    const sp=document.createElement("span"); sp.className="mono"; sp.textContent=r.txt;
+    Object.assign(sp.style,{position:"absolute",left:(r.xt/TL_MAX*100)+"%",top:"50%",transform:"translateY(-50%)",fontSize:".68rem",color:r.dim?COL.muted:"#0a0f12",whiteSpace:"nowrap",fontWeight:"500"});
+    if(!r.dim){sp.style.color=COL.fg;sp.style.textShadow="0 0 4px #000, 0 0 2px #000";}
+    tr.appendChild(sp);
+    const now=document.createElement("div"); now.className="tl-now"; now.dataset.now="1"; tr.appendChild(now);
+    row.append(lab,tr); el.appendChild(row);
+  });
+  const ax=document.getElementById("tlAxis"); ax.innerHTML="";
+  for(let h=0;h<=TL_MAX;h+=3){const s=document.createElement("span");s.style.left=(h/TL_MAX*100)+"%";s.textContent=`+${h}h`;if(h===0)s.style.transform="none";if(h===TL_MAX)s.style.transform="translateX(-100%)";ax.appendChild(s);}
+  updateTimelineATX();
+}
+function updateTimelineATX(){
+  const tr=document.getElementById("tlAtx"); if(!tr) return;
+  // PM: pico mais tardio e queda muito lenta
+  const pm=S.cyp==="PM", food=S.food;
+  const b=food?4:(pm?1.5:1), c=food?5.5:(pm?3:2), d=pm?40:12+(food?3:0);
+  tr.style.background=grad(COL.atx,0,b,c,d,.7)+", #0c1417";
+  tr.previousSibling.textContent=`ATX · plasma (${S.cyp})`;
+  tr.querySelector("span").textContent=pm?"pico ~2–3 h · queda muito lenta (t½ ~22 h)":(food?"pico mais tardio com alimento":"pico 1–2 h · t½ ~5 h");
+}
+function updateTimelineNow(tn){
+  const tdL=lastDoseBefore(G.ldxDoses,tn), tdA=lastDoseBefore(G.atxDoses,tn);
+  document.querySelectorAll("#tl .tl-row").forEach((row,i)=>{
+    const n=row.querySelector("[data-now]"); const td=i>=2?tdA:tdL;
+    if(td===null||tn-td>TL_MAX){n.hidden=true;return;} n.hidden=false; n.style.left=((tn-td)/TL_MAX*100)+"%";
+  });
+}
+
+/* ---------------- animação da sinapse (canvas) ---------------- */
+// Esquema didático, sem escala. Intensidades opcionalmente ligadas à fração do pico plasmático atual.
+const syn={amp:0,atx:0,parts:[],t:0};
+const cv=document.getElementById("syn"), sx=cv.getContext("2d");
+const SW=800, SH=500; // coordenadas lógicas
+const MEM_Y=270, POST_Y=380;
+const DAT={x:220,y:MEM_Y}, NET={x:580,y:MEM_Y}, TAAR={x:400,y:200};
+const VES=[{x:250,y:120},{x:340,y:85},{x:450,y:95},{x:540,y:130},{x:400,y:150}];
+const RECEPT=[150,260,370,480,590,690];
+function fitSyn(){const r=cv.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);cv.width=Math.max(1,r.width*dpr);cv.height=Math.max(1,r.height*dpr);}
+function addPart(type,x,y,vx,vy,state){ if(syn.parts.length>420) return; syn.parts.push({type,x,y,vx,vy,state,age:0,bound:0}); }
+function synLevels(){
+  const sync=document.getElementById("synSync").checked;
+  const ua=document.getElementById("synAmp").checked, ux=document.getElementById("synAtx").checked;
+  return {a: ua?(sync?syn.amp:1):0, x: ux?(sync?syn.atx:1):0};
+}
+function synStep(dt){
+  const L=synLevels(); syn.t+=dt;
+  const R=Math.random;
+  // exocitose basal (dependente de impulso)
+  if(R()<dt*2.2){const v=VES[Math.floor(R()*VES.length)];const tp=R()<.5?"DA":"NE";
+    for(let k=0;k<4;k++) addPart(tp,v.x+(R()-.5)*120,MEM_Y+6,(R()-.5)*30,20+R()*30,"cleft");}
+  // anfetamina: entra pelos transportadores, vai às vesículas (VMAT2) e causa efluxo reverso
+  if(R()<dt*6*L.a){const tr=R()<.5?DAT:NET;addPart("AMP",tr.x+(R()-.5)*30,MEM_Y+30,0,-40,"enter");}
+  if(R()<dt*7*L.a){const tr=R()<.5?DAT:NET;const tp=tr===DAT?"DA":"NE";
+    if(!(tr===NET&&L.x>.3&&R()<.6)) addPart(tp,tr.x+(R()-.5)*14,MEM_Y+8,(R()-.5)*40,30+R()*25,"cleft");}
+  // atomoxetina: moléculas ocupando o NET
+  const atxN=syn.parts.filter(p=>p.type==="ATX").length, target=Math.round(10*L.x);
+  if(atxN<target&&R()<dt*4) addPart("ATX",NET.x+(R()-.5)*200,POST_Y-10,0,-30,"bind");
+  if(atxN>target){const i=syn.parts.findIndex(p=>p.type==="ATX");if(i>=0)syn.parts.splice(i,1);}
+  const netBlock=Math.min(.95,L.x*1.1);
+  for(const p of syn.parts){
+    p.age+=dt;
+    if(p.state==="cleft"){
+      p.vx+=(R()-.5)*90*dt; p.vy+=(R()-.5)*90*dt; p.vx*=.98; p.vy*=.98;
+      p.x+=p.vx*dt; p.y+=p.vy*dt;
+      if(p.y<MEM_Y+5){p.y=MEM_Y+5;p.vy=Math.abs(p.vy);} if(p.y>POST_Y-5){p.y=POST_Y-5;p.vy=-Math.abs(p.vy);if(R()<.15)p.bound=.4;}
+      if(p.x<20||p.x>SW-20) p.vx*=-1;
+      p.bound=Math.max(0,p.bound-dt);
+      // recaptação: DA via DAT (e NET), NE via NET
+      const dDAT=Math.hypot(p.x-DAT.x,p.y-DAT.y), dNET=Math.hypot(p.x-NET.x,p.y-NET.y);
+      const revDAT=.75*L.a, revNET=.75*L.a; // transporte reverso reduz captação
+      if(p.type==="DA"&&dDAT<40&&R()<dt*5*(1-revDAT)) p.state="up";
+      if(dNET<40&&R()<dt*5*(1-revNET)*(1-netBlock)*(p.type==="NE"?1:.4)) p.state="up";
+      if(R()<dt*.06) p.state="gone"; // difusão/degradação (COMT)
+    } else if(p.state==="up"){ p.vy=-80; p.y+=p.vy*dt; if(p.y<MEM_Y-30) p.state="gone"; }
+    else if(p.state==="enter"){ const v=VES[(p.x|0)%VES.length]; p.x+=(v.x-p.x)*dt*1.2; p.y+=(v.y-p.y)*dt*1.2+(-20*dt); if(Math.hypot(p.x-v.x,p.y-v.y)<18||p.age>4) p.state="gone"; }
+    else if(p.state==="bind"){ const tx=NET.x+(syn.parts.indexOf(p)%5-2)*7; p.x+=(tx-p.x)*dt*2; p.y+=((MEM_Y+14)-p.y)*dt*2; }
+  }
+  syn.parts=syn.parts.filter(p=>p.state!=="gone"&&p.age<30);
+}
+function drawTransporter(c,x,y,label,color,rev,block){
+  c.save(); c.translate(x,y);
+  c.fillStyle=hexA(color,.25); c.strokeStyle=color; c.lineWidth=2;
+  c.beginPath(); c.roundRect(-26,-22,20,44,8); c.fill(); c.stroke();
+  c.beginPath(); c.roundRect(6,-22,20,44,8); c.fill(); c.stroke();
+  c.fillStyle=COL.fg; c.font="600 15px JetBrains Mono, monospace"; c.textAlign="center"; c.fillText(label,0,-32);
+  // seta: recaptação (para cima) ou reverso (para baixo)
+  c.strokeStyle=rev>.15?COL.amp:COL.muted; c.lineWidth=2.5; c.beginPath();
+  if(rev>.15){c.moveTo(0,-16);c.lineTo(0,16);c.moveTo(-6,10);c.lineTo(0,16);c.lineTo(6,10);}
+  else {c.moveTo(0,16);c.lineTo(0,-16);c.moveTo(-6,-10);c.lineTo(0,-16);c.lineTo(6,-10);}
+  c.stroke();
+  if(block>.15){c.strokeStyle=hexA(COL.alt,Math.min(1,block+.2));c.lineWidth=4;c.beginPath();c.moveTo(-22,-18);c.lineTo(22,18);c.moveTo(22,-18);c.lineTo(-22,18);c.stroke();}
+  c.restore();
+}
+function synDraw(){
+  const c=sx, k=cv.width/SW, ky=cv.height/SH; c.setTransform(k,0,0,ky,0,0);
+  c.clearRect(0,0,SW,SH);
+  const L=synLevels();
+  // terminal pré-sináptico
+  c.fillStyle="#132126"; c.strokeStyle="#2e464f"; c.lineWidth=2;
+  c.beginPath(); c.moveTo(80,0); c.bezierCurveTo(70,160,110,MEM_Y,200,MEM_Y); c.lineTo(600,MEM_Y); c.bezierCurveTo(690,MEM_Y,730,160,720,0); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle=COL.muted; c.font="13px JetBrains Mono, monospace"; c.textAlign="left"; c.fillText("TERMINAL PRÉ-SINÁPTICO",110,28);
+  // pós-sináptico
+  c.fillStyle="#121c22"; c.beginPath(); c.moveTo(40,POST_Y); c.lineTo(760,POST_Y); c.lineTo(760,SH); c.lineTo(40,SH); c.closePath(); c.fill(); c.stroke();
+  c.fillText("NEURÔNIO PÓS-SINÁPTICO",56,SH-18);
+  c.fillStyle=COL.muted; c.fillText("fenda sináptica",SW-170,MEM_Y+56);
+  // receptores pós-sinápticos
+  const nearCount=x=>syn.parts.filter(p=>p.state==="cleft"&&Math.abs(p.x-x)<35&&p.y>POST_Y-40).length;
+  for(const x of RECEPT){const n=nearCount(x);c.strokeStyle=hexA("#d8e3e5",.35+Math.min(.65,n*.15));c.lineWidth=3;
+    c.beginPath();c.arc(x,POST_Y,12,Math.PI,0);c.stroke(); if(n>1){c.fillStyle=hexA(COL.warn,Math.min(.5,n*.08));c.beginPath();c.arc(x,POST_Y,18,Math.PI,0);c.fill();}}
+  // vesículas + VMAT2
+  for(const v of VES){
+    const leak=L.a; c.fillStyle=hexA("#d8e3e5",.06); c.strokeStyle=hexA("#d8e3e5",.35); c.lineWidth=1.5;
+    c.beginPath(); c.arc(v.x,v.y,24,0,7); c.fill(); c.stroke();
+    const n=Math.round(7*(1-.6*leak));
+    for(let i=0;i<n;i++){const a=i/n*6.28+syn.t*.3;c.fillStyle=i%2?COL.atx:COL.ldx;c.beginPath();c.arc(v.x+Math.cos(a)*12,v.y+Math.sin(a)*12,3,0,7);c.fill();}
+    c.fillStyle=leak>.15?COL.amp:"#4b6a72"; c.fillRect(v.x+20,v.y-5,9,10); // VMAT2
+  }
+  c.fillStyle=COL.muted; c.font="11px JetBrains Mono, monospace"; c.fillText("VMAT2",VES[3].x+32,VES[3].y+4);
+  // DA/NE citosólicos (vazamento vesicular por anfetamina)
+  const cyto=Math.round(14*L.a);
+  for(let i=0;i<cyto;i++){const x=200+((i*97+syn.t*20)%400), y=170+Math.sin(i*1.7+syn.t)*40+((i*37)%50);c.fillStyle=i%2?COL.atx:COL.ldx;c.globalAlpha=.8;c.beginPath();c.arc(x,y,2.6,0,7);c.fill();}
+  c.globalAlpha=1;
+  // TAAR1
+  c.save(); c.translate(TAAR.x,TAAR.y+20); c.rotate(Math.PI/4);
+  c.fillStyle=L.a>.1?hexA(COL.amp,.3+.5*L.a*(.6+.4*Math.sin(syn.t*4))):"#1d2d33"; c.strokeStyle=L.a>.1?COL.amp:"#3d5860"; c.lineWidth=2;
+  c.fillRect(-10,-10,20,20); c.strokeRect(-10,-10,20,20); c.restore();
+  c.fillStyle=COL.muted; c.textAlign="center"; c.fillText("TAAR1",TAAR.x,TAAR.y-4);
+  // transportadores
+  drawTransporter(c,DAT.x,DAT.y,"DAT",COL.ldx,L.a,0);
+  drawTransporter(c,NET.x,NET.y,"NET",COL.atx,L.a,Math.min(1,L.x*1.1));
+  // partículas
+  for(const p of syn.parts){
+    if(p.type==="ATX"){c.fillStyle=COL.alt;c.fillRect(p.x-4,p.y-4,8,8);continue;}
+    if(p.type==="AMP"){c.fillStyle=COL.amp;c.beginPath();c.moveTo(p.x,p.y-5);c.lineTo(p.x+5,p.y+4);c.lineTo(p.x-5,p.y+4);c.closePath();c.fill();continue;}
+    c.fillStyle=p.type==="DA"?COL.ldx:COL.atx; c.globalAlpha=p.state==="up"?.5:1;
+    c.beginPath(); c.arc(p.x,p.y,p.bound>0?4.5:3.2,0,7); c.fill(); c.globalAlpha=1;
+  }
+  // contagem na fenda
+  const nDA=syn.parts.filter(p=>p.state==="cleft"&&p.type==="DA").length, nNE=syn.parts.filter(p=>p.state==="cleft"&&p.type==="NE").length;
+  c.textAlign="right"; c.font="12px JetBrains Mono, monospace";
+  c.fillStyle=COL.ldx; c.fillText(`DA na fenda: ${nDA}`,SW-20,MEM_Y+20);
+  c.fillStyle=COL.atx; c.fillText(`NE na fenda: ${nNE}`,SW-20,MEM_Y+36);
+}
+const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+let lastF=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-lastF)/1000); lastF=now;
+  if(!reduceMotion||syn.parts.length<5) synStep(reduceMotion?.05:dt);
+  synDraw();
+  pulse+=dt*3;
+  requestAnimationFrame(frame);
+}
+
+/* ---------------- painel avançado ---------------- */
+const SLIDERS=[
+  {g:"Lisdexamfetamina → d-anfetamina"},
+  {id:"ldx.ka",lbl:"k<sub>a</sub> absorção LDX",min:.2,max:4,step:.05,u:"h⁻¹",src:"≈ calibrado p/ T<sub>max</sub> LDX ~1 h"},
+  {id:"ldx.kconv",lbl:"k<sub>conv</sub> hidrólise (hemácias)",min:.2,max:5,step:.05,u:"h⁻¹",src:"≈ t½ LDX <1 h (bula)"},
+  {id:"ldx.F",lbl:"F (fração convertida)",min:.5,max:1,step:.01,u:"",src:"≈ 0,96 (bula)"},
+  {id:"ldx.VdAmp",lbl:"V<sub>d</sub> d-anfetamina",min:1.5,max:6,step:.1,u:"L/kg",src:"≈ 3,0 calibrado (lit. 3–5)"},
+  {id:"ldx.pH",lbl:"pH urinário",min:4.5,max:8,step:.1,u:"",src:"altera k<sub>el</sub>: urina ácida → t½ menor",ph:true},
+  {id:"ldx.ampThalf",lbl:"t½ d-anfetamina (k<sub>el</sub>)",min:5,max:36,step:.1,u:"h",src:"bula ~10–12 h; ligado ao pH"},
+  {g:"Atomoxetina"},
+  {id:"atx.ka",lbl:"k<sub>a</sub> absorção ATX",min:.2,max:4,step:.05,u:"h⁻¹",src:"≈ calibrado p/ T<sub>max</sub> 1–2 h"},
+  {id:"atx.F",lbl:"F (fenótipo ativo)",min:.3,max:1,step:.01,u:"",src:"bula: 0,63 EM · 0,94 PM",phen:true},
+  {id:"atx.thalf",lbl:"t½ (k<sub>el</sub>) fenótipo ativo",min:2,max:30,step:.1,u:"h",src:"bula: 5,2 h EM · 21,6 h PM",phen:true},
+  {id:"atx.Vd",lbl:"V<sub>d</sub> atomoxetina",min:.4,max:2,step:.05,u:"L/kg",src:"0,85 L/kg (bula)"}
+];
+function getP(id){const [a,b]=id.split(".");if(a==="atx"&&(b==="F"||b==="thalf"))return P.atx[S.cyp][b];return P[a][b];}
+function setP(id,v){const [a,b]=id.split(".");if(a==="atx"&&(b==="F"||b==="thalf"))P.atx[S.cyp][b]=v;else P[a][b]=v;}
+function buildSliders(){
+  const el=document.getElementById("sliders"); el.innerHTML="";
+  for(const s of SLIDERS){
+    if(s.g){const d=document.createElement("div");d.className="group-t";d.textContent=s.g;el.appendChild(d);continue;}
+    const w=document.createElement("div"); w.className="sl";
+    const sid="sl-"+s.id.replace(".","-");
+    const lbl=s.phen?s.lbl.replace("fenótipo ativo",S.cyp):s.lbl;
+    w.innerHTML=`<div class="top"><label for="${sid}">${lbl}</label><output id="${sid}-o"></output></div>
+      <input type="range" id="${sid}" min="${s.min}" max="${s.max}" step="${s.step}" value="${getP(s.id)}">
+      <span class="src">${s.src}</span>`;
+    el.appendChild(w);
+    const inp=w.querySelector("input"), out=w.querySelector("output");
+    const show=()=>{out.textContent=`${(+getP(s.id)).toFixed(s.step<.1?2:1)} ${s.u}`; inp.value=getP(s.id);};
+    show(); s._show=show;
+    inp.addEventListener("input",()=>{
+      setP(s.id,+inp.value);
+      if(s.id==="ldx.pH") P.ldx.ampThalf=ampHalfLifeFromPH(P.ldx.pH);
+      SLIDERS.forEach(o=>o._show&&o._show());
+      refresh(false);
+    });
+  }
+}
+
+/* ---------------- ligação de UI ---------------- */
+function refresh(resetRange){ updateChart(resetRange); updateTimelineATX(); tick(); }
+function seg(id,cb){const el=document.getElementById(id);el.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  el.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));cb(b.dataset.v);});}
+function init(){
+  // horário de exemplo: hoje 08:00 (ou ontem, se ainda não for 08:00)
+  const d=new Date(); d.setSeconds(0,0); d.setHours(8,0);
+  if(Date.now()<d.getTime()) d.setDate(d.getDate()-1);
+  S.tLdx=toLocalInput(d); S.tAtx=toLocalInput(d);
+  const iL=document.getElementById("tLdx"), iA=document.getElementById("tAtx");
+  iL.value=S.tLdx; iA.value=S.tAtx;
+  iL.addEventListener("change",()=>{if(iL.value){S.tLdx=iL.value;refresh(true);}});
+  iA.addEventListener("change",()=>{if(iA.value){S.tAtx=iA.value;refresh(true);}});
+  seg("cypSeg",v=>{S.cyp=v;buildSliders();refresh(false);});
+  seg("timeMode",v=>{S.timeMode=v;document.getElementById("scrubRow").classList.toggle("on",v==="sim");
+    if(v==="sim"){const r=(Date.now()-G.t0)/HOUR;S.simT=Math.min(G.xmax,Math.max(0,isFinite(r)?r:6));document.getElementById("scrub").value=S.simT;}
+    tick(); chart.draw();});
+  document.getElementById("scrub").addEventListener("input",e=>{S.simT=+e.target.value;tick();chart.draw();});
+  document.getElementById("days").addEventListener("change",e=>{S.days=+e.target.value;refresh(true);});
+  document.getElementById("weight").addEventListener("change",e=>{const w=+e.target.value;if(w>=30&&w<=150){S.weight=w;refresh(false);}else e.target.value=S.weight;});
+  document.getElementById("food").addEventListener("change",e=>{S.food=e.target.checked;refresh(false);});
+  document.getElementById("compare").addEventListener("change",e=>{S.compare=e.target.checked;refresh(false);});
+  document.getElementById("resetZoom").addEventListener("click",()=>{chart.resetZoom?.();});
+  document.getElementById("resetParams").addEventListener("click",()=>{
+    const fresh=structuredClone(DEFAULTS); Object.assign(P.ldx,fresh.ldx); Object.assign(P.atx,fresh.atx);
+    P.ldx.ampThalf=ampHalfLifeFromPH(P.ldx.pH); buildSliders(); refresh(false);});
+  makeChart(); buildSliders(); buildTimeline(); refresh(true);
+  fitSyn(); addEventListener("resize",fitSyn);
+  setInterval(tick,1000);
+  // redesenha o marcador pulsante ~8×/s sem recalcular séries
+  setInterval(()=>chart.draw(),reduceMotion?1000:125);
+  requestAnimationFrame(frame);
+}
+if(window.Chart){ if(window.ChartZoom) Chart.register(window.ChartZoom); init(); }
+else document.querySelector(".chart-box").innerHTML='<p style="padding:20px">Não foi possível carregar a biblioteca de gráficos (Chart.js). Verifique a conexão.</p>';
+</script>
+</body>
+</html>
