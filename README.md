@@ -2,7 +2,9 @@
 
 Site educacional de página única (HTML + CSS + JS, sem backend). Simula em tempo real a farmacocinética da combinação de lisdexamfetamina (Venvanse) 30 mg e atomoxetina 80 mg, a partir de parâmetros de bulas da FDA e de estudos publicados.
 
-**Abrir:** `index.html` no navegador, ou a versão publicada no GitHub Pages.
+### 🔗 [Abrir o simulador → ph009.github.io/simulador-pk-ldx-atx](https://ph009.github.io/simulador-pk-ldx-atx/)
+
+Ou baixe e abra `index.html` direto no navegador (precisa de internet para carregar Chart.js e as fontes).
 
 ## O que tem
 - Gráfico de concentração plasmática 0–48 h (LDX intacta, d-anfetamina, atomoxetina) com marcador "AGORA", zoom e pan
