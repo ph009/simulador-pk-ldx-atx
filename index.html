@@ -106,6 +106,39 @@ input[type=range]{width:100%;accent-color:var(--atx)}
 .explain{font-size:.88rem;color:#b9c8cb;border-top:1px dashed var(--line-2);padding-top:10px;display:grid;gap:8px}
 .explain b{color:var(--fg)}
 
+/* abas */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line-2);overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);font-family:var(--f-display);font-weight:600;font-size:1rem;letter-spacing:.06em;text-transform:uppercase;padding:10px 16px;cursor:pointer;white-space:nowrap;margin-bottom:-1px}
+.tabs button:hover{color:var(--fg)}
+.tabs button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--atx)}
+.tabpanel{display:grid;gap:18px}
+.tabpanel[hidden]{display:none!important}
+
+/* hidratação */
+.hyd-hero{display:grid;gap:10px}
+.hyd-title{font-size:clamp(1.3rem,2.8vw,1.8rem);text-transform:none;letter-spacing:.01em}
+.hyd-lead{max-width:75ch;color:#c3d1d4;font-size:1rem}
+.hyd-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+@media (max-width:900px){.hyd-stats{grid-template-columns:minmax(0,1fr)}}
+.stat{display:grid;gap:6px;align-content:start;border-top:3px solid var(--atx)}
+.stat .lbl{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stat .n{font-size:1.6rem;color:var(--fg);line-height:1.2}
+.stat .n small{font-size:.75rem;color:var(--muted)}
+.stat .n.warn{color:var(--warn);font-size:1.25rem}
+.when{display:grid;gap:10px}
+.when-row{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;align-items:start;font-size:.9rem}
+@media (max-width:560px){.when-row{grid-template-columns:minmax(0,1fr)}}
+.tag{font-family:var(--f-mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--atx);border:1px solid var(--atx);border-radius:3px;padding:2px 7px;justify-self:start}
+.tag.warn{color:var(--warn);border-color:var(--warn)}
+.calc-out{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;margin:16px 0;font-size:.9rem}
+.calc-out dt{color:#b9c8cb}
+.calc-out dd{margin:0;font-family:var(--f-mono);color:var(--fg);text-align:right;font-variant-numeric:tabular-nums}
+.urine{display:grid;grid-template-columns:repeat(6,1fr);height:26px;border-radius:4px;overflow:hidden;border:1px solid var(--line-2)}
+.urine span{display:block}
+.urine-lbl{display:flex;justify-content:space-between;gap:8px;color:var(--muted);margin-top:4px}
+.panel.prose.hyd-med{max-width:none}
+.hyd-med ul{max-width:85ch}
+
 /* resumo para leigos */
 .lay{display:grid;gap:16px;border-color:var(--line-2);background:linear-gradient(180deg,var(--panel-2),var(--panel))}
 .lay-head{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline;justify-content:space-between}
@@ -204,6 +237,12 @@ footer{color:var(--dim);font-size:.8rem;text-align:center;padding-top:8px}
     </div>
   </header>
 
+  <nav class="tabs" role="tablist" aria-label="Seções do site">
+    <button role="tab" id="tabbtn-simulador" aria-controls="tab-simulador" aria-selected="true" data-tab="simulador">Simulador PK</button>
+    <button role="tab" id="tabbtn-hidratacao" aria-controls="tab-hidratacao" aria-selected="false" data-tab="hidratacao">Hidratação</button>
+  </nav>
+
+  <div id="tab-simulador" class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-simulador">
   <!-- CONTROLES -->
   <section class="panel" aria-labelledby="h-ctl">
     <div class="panel-head"><h2 id="h-ctl">Entrada</h2><span class="muted small">Os horários abaixo são exemplos. Ajuste para explorar.</span></div>
@@ -404,6 +443,120 @@ footer{color:var(--dim);font-size:.8rem;text-align:center;padding-top:8px}
       <li>Dittmann RW et al. Efficacy and safety of lisdexamfetamine dimesylate and atomoxetine in children and adolescents with ADHD: head-to-head study. <i>CNS Drugs</i> 2013. <a href="https://pubmed.ncbi.nlm.nih.gov/23959815/" target="_blank" rel="noopener">PMID 23959815</a> <span class="note">(compara eficácia; não é estudo de interação)</span></li>
     </ol>
   </section>
+
+  </div><!-- /tab-simulador -->
+
+  <!-- ===================== ABA HIDRATAÇÃO ===================== -->
+  <div id="tab-hidratacao" class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-hidratacao" hidden>
+
+    <section class="panel hyd-hero">
+      <span class="eyebrow">Guia baseado em fontes primárias</span>
+      <h2 class="hyd-title">Hidratação: quanto, quando e por quê</h2>
+      <p class="hyd-lead">Para a maioria dos adultos saudáveis em repouso e clima ameno, a sede e o hábito de beber nas refeições bastam. As agências de referência não recomendam um intervalo fixo, do tipo “um copo a cada X minutos”, para o dia a dia. Intervalos definidos existem para situações específicas, como trabalho no calor e exercício. Os números abaixo vêm dessas fontes, e cada um indica de onde saiu.</p>
+    </section>
+
+    <section class="hyd-stats" aria-label="Valores de referência diários">
+      <div class="panel stat">
+        <span class="lbl">EFSA (Europa) · ingestão adequada total</span>
+        <div class="n mono">2,0 L <small>mulheres</small></div>
+        <div class="n mono">2,5 L <small>homens</small></div>
+        <p class="small muted">Água total por dia, somando bebidas e alimentos (≈20–30% vem da comida). EFSA, 2010.</p>
+      </div>
+      <div class="panel stat">
+        <span class="lbl">National Academies (EUA) · ingestão adequada total</span>
+        <div class="n mono">2,7 L <small>mulheres</small></div>
+        <div class="n mono">3,7 L <small>homens</small></div>
+        <p class="small muted">≈80% vem de bebidas, ou seja, ~2,2 L e ~3,0 L de líquidos. Valores médios de populações, não metas individuais. IOM, 2004/2005.</p>
+      </div>
+      <div class="panel stat">
+        <span class="lbl">Trabalho ou atividade no calor (NIOSH/CDC)</span>
+        <div class="n mono">~240 mL <small>a cada 15–20 min</small></div>
+        <div class="n mono warn">≤ 1,4 L/h</div>
+        <p class="small muted">Beber antes de sentir sede durante esforço no calor. Passar de ~1,4 L por hora pode baixar o sódio do sangue.</p>
+      </div>
+    </section>
+
+    <section class="two">
+      <div class="panel prose" aria-labelledby="h-why">
+        <h2 id="h-why">Por que importa</h2>
+        <ul>
+          <li><b>Água é o principal componente do corpo</b> (cerca de 50–60% do peso de um adulto). Ela regula a temperatura pelo suor, transporta nutrientes e permite que os rins eliminem resíduos, inclusive medicamentos como a anfetamina.</li>
+          <li><b>Perdas diárias contínuas:</b> urina, suor, respiração e fezes. Calor, exercício, febre, vômito e diarreia aumentam essas perdas.</li>
+          <li><b>Desidratação leve já se sente.</b> Em estudos controlados, perder ~1,4% do peso corporal em água (≈1 kg numa pessoa de 70 kg) aumentou a fadiga e piorou o humor. Nos homens, também aumentou os erros de vigilância e a lentidão da memória de trabalho (Ganio 2011; Armstrong 2012).</li>
+          <li><b>No esporte,</b> perder mais de ~2% do peso em água prejudica o desempenho aeróbico e o raciocínio, principalmente no calor (ACSM, 2007).</li>
+          <li><b>Excesso também faz mal.</b> Beber muito além das perdas, sobretudo em provas longas, pode causar hiponatremia (sódio baixo no sangue), uma emergência médica.</li>
+        </ul>
+      </div>
+
+      <div class="panel prose" aria-labelledby="h-when">
+        <h2 id="h-when">De quanto em quanto tempo?</h2>
+        <div class="when">
+          <div class="when-row"><span class="tag">Dia a dia</span><p>Não há intervalo fixo com evidência. Beba nas refeições e entre elas quando tiver sede. As National Academies consideram sede + bebidas nas refeições suficientes para a maioria das pessoas saudáveis. Distribuir ao longo do dia é mais confortável que tomar muito de uma vez.</p></div>
+          <div class="when-row"><span class="tag">Antes do exercício</span><p>≈5–7 mL/kg pelo menos 4 h antes; se a urina estiver escura ou escassa, mais ≈3–5 mL/kg cerca de 2 h antes (ACSM).</p></div>
+          <div class="when-row"><span class="tag">Durante o exercício</span><p>Plano individual para não perder mais de ~2% do peso. Pesar-se antes e depois mostra quanto você costuma perder (ACSM).</p></div>
+          <div class="when-row"><span class="tag">Depois</span><p>≈1,5 L para cada 1 kg perdido, junto com comida ou bebida com sódio (ACSM).</p></div>
+          <div class="when-row"><span class="tag warn">Calor / trabalho físico</span><p>≈1 copo (240 mL) a cada 15–20 min, sem esperar a sede, e não mais que ~1,4 L/h (NIOSH/CDC).</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="two">
+      <div class="panel" aria-labelledby="h-calc">
+        <div class="panel-head"><h2 id="h-calc">Calculadora de referência</h2><span class="approx">≈ estimativa</span></div>
+        <div class="controls" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+          <div class="ctl"><label for="hW">Peso (kg)</label><input type="number" id="hW" min="30" max="200" value="70"></div>
+          <div class="ctl"><label for="hSex">Referência</label><select id="hSex"><option value="f">Mulher</option><option value="m" selected>Homem</option></select></div>
+          <div class="ctl"><label for="hLoss">Peso perdido no treino (kg)</label><input type="number" id="hLoss" min="0" max="5" step="0.1" value="0.5"></div>
+        </div>
+        <dl class="calc-out" id="hOut"></dl>
+        <p class="small muted">Valores tirados das fontes ao lado, para adultos saudáveis. Doença renal, cardíaca ou hepática, gravidez e alguns medicamentos mudam essas necessidades, às vezes com restrição de líquidos. Nesses casos, siga a orientação médica.</p>
+      </div>
+
+      <div class="panel" aria-labelledby="h-urine">
+        <div class="panel-head"><h2 id="h-urine">Sinais práticos</h2></div>
+        <div class="urine" role="img" aria-label="Escala de cor da urina: de amarelo-claro (bem hidratado) a âmbar escuro (pouco hidratado)">
+          <span style="background:#f4f1c8"></span><span style="background:#ece59a"></span><span style="background:#e1d36a"></span><span style="background:#cfb544"></span><span style="background:#b38f2c"></span><span style="background:#8c6a1f"></span>
+        </div>
+        <div class="urine-lbl small"><span>amarelo-claro: hidratado</span><span>âmbar escuro: beba mais</span></div>
+        <ul class="small" style="margin:12px 0 0;padding-left:18px;display:grid;gap:6px">
+          <li><b>Cor da urina</b> é um indicador simples e validado em pesquisa (Armstrong). Vitaminas do complexo B e alguns alimentos alteram a cor.</li>
+          <li><b>Sede, boca seca, urina escassa, dor de cabeça e cansaço</b> podem indicar falta de líquido.</li>
+          <li><b>Idosos</b> sentem menos sede. Nessa faixa etária, beber em horários definidos ajuda.</li>
+          <li><b>Procure atendimento</b> se houver confusão, desmaio, ausência de urina por muitas horas ou, após beber muito, náusea, dor de cabeça forte e confusão (possível hiponatremia).</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="panel prose hyd-med" aria-labelledby="h-meds">
+      <h2 id="h-meds">E com lisdexamfetamina + atomoxetina?</h2>
+      <ul>
+        <li><b>Boca seca é efeito comum dos dois.</b> Na bula do Vyvanse, num estudo em adultos com TDAH, boca seca apareceu em 26% (placebo 3%). A bula da atomoxetina também lista boca seca entre os efeitos comuns em adultos. Boca seca não é o mesmo que desidratação, mas é um bom lembrete para ter água por perto.</li>
+        <li><b>Menos apetite = menos água da comida.</b> Cerca de 20–30% da água diária vem dos alimentos (EFSA). Pular refeições sob efeito do estimulante reduz essa parte, e repor com bebidas e lanches ricos em água (frutas, sopas, iogurte) ajuda.</li>
+        <li><b>Calor e esforço físico:</b> estimulantes aumentam a frequência cardíaca e podem dificultar perceber o cansaço. Nessas situações, siga o esquema do NIOSH acima e faça pausas.</li>
+        <li><b>Atomoxetina e urina:</b> a bula lista retenção ou hesitação urinária em adultos. Se você está bebendo bem e urinando pouco, ou com dificuldade, fale com o médico.</li>
+        <li><b>Bebidas e pH urinário:</b> agentes que acidificam a urina (como doses altas de vitamina C) aceleram a eliminação da anfetamina; os que alcalinizam (como bicarbonato) a retardam (bula Vyvanse). É o mesmo efeito do slider de pH na aba do simulador. Beber água comum não muda a farmacocinética de forma relevante.</li>
+        <li><b>Cafeína e álcool:</b> café e chá contam como líquido para hidratação em quem já consome com regularidade, mas a cafeína soma estímulo cardíaco ao estimulante. O álcool aumenta a diurese e não deve ser usado para se hidratar.</li>
+      </ul>
+      <p class="muted small">As recomendações de hidratação são gerais e não substituem orientação médica, principalmente se houver doença cardíaca, renal ou restrição de líquidos.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-hydref">
+      <div class="panel-head"><h2 id="h-hydref">Fontes (hidratação)</h2></div>
+      <ol class="refs">
+        <li>EFSA Panel on Dietetic Products, Nutrition and Allergies. Scientific Opinion on Dietary Reference Values for water. <i>EFSA Journal</i> 2010;8(3):1459. <a href="https://doi.org/10.2903/j.efsa.2010.1459" target="_blank" rel="noopener">doi:10.2903/j.efsa.2010.1459</a></li>
+        <li>Institute of Medicine (National Academies). <i>Dietary Reference Intakes for Water, Potassium, Sodium, Chloride, and Sulfate</i>. Washington, DC: National Academies Press; 2005. <a href="https://nap.nationalacademies.org/catalog/10925" target="_blank" rel="noopener">nap.nationalacademies.org/catalog/10925</a></li>
+        <li>NIOSH/CDC. <i>Heat Stress: Hydration</i> (DHHS/NIOSH 2017-126). <a href="https://stacks.cdc.gov/view/cdc/45851" target="_blank" rel="noopener">stacks.cdc.gov/view/cdc/45851</a></li>
+        <li>OSHA/NIOSH. <i>Protecting Workers from Heat Illness</i> (infosheet; limite de ~1,4 L/h). <a href="https://www.elcosh.org/record/document/1262/d001135.pdf" target="_blank" rel="noopener">elcosh.org (PDF)</a></li>
+        <li>American College of Sports Medicine; Sawka MN et al. Exercise and fluid replacement (position stand). <i>Med Sci Sports Exerc</i> 2007;39(2):377–390. <a href="https://pubmed.ncbi.nlm.nih.gov/?term=American+College+of+Sports+Medicine+position+stand+exercise+and+fluid+replacement+2007" target="_blank" rel="noopener">busca PubMed</a></li>
+        <li>Ganio MS et al. Mild dehydration impairs cognitive performance and mood of men. <i>Br J Nutr</i> 2011;106(10):1535–1543. <a href="https://pubmed.ncbi.nlm.nih.gov/21736786/" target="_blank" rel="noopener">PMID 21736786</a></li>
+        <li>Armstrong LE et al. Mild dehydration affects mood in healthy young women. <i>J Nutr</i> 2012;142(2):382–388. <a href="https://pubmed.ncbi.nlm.nih.gov/?term=Mild+dehydration+affects+mood+in+healthy+young+women" target="_blank" rel="noopener">busca PubMed</a></li>
+        <li>Hew-Butler T et al. Statement of the Third International Exercise-Associated Hyponatremia Consensus Development Conference. <i>Clin J Sport Med</i> 2015. <a href="https://pubmed.ncbi.nlm.nih.gov/?term=Third+International+Exercise-Associated+Hyponatremia+Consensus" target="_blank" rel="noopener">busca PubMed</a></li>
+        <li>Armstrong LE et al. Urinary indices of hydration status. <i>Int J Sport Nutr</i> 1994. <a href="https://pubmed.ncbi.nlm.nih.gov/?term=Armstrong+Urinary+indices+of+hydration+status+1994" target="_blank" rel="noopener">busca PubMed</a></li>
+        <li>FDA. Vyvanse — Prescribing Information (reações adversas; agentes que alteram o pH urinário). <a href="https://www.accessdata.fda.gov/drugsatfda_docs/label/2026/021977s052lbl.pdf" target="_blank" rel="noopener">accessdata.fda.gov (PDF)</a></li>
+        <li>FDA. Strattera — Prescribing Information (boca seca; retenção/hesitação urinária em adultos). <a href="https://dailymed.nlm.nih.gov/dailymed/search.cfm?labeltype=all&amp;query=strattera" target="_blank" rel="noopener">DailyMed</a></li>
+      </ol>
+    </section>
+  </div><!-- /tab-hidratacao -->
 
   <footer>Uso educacional. Os modelos usam médias populacionais e não preveem a resposta de nenhuma pessoa específica.</footer>
 </div>
@@ -1051,6 +1204,48 @@ function init(){
   setInterval(()=>chart.draw(),reduceMotion?1000:125);
   requestAnimationFrame(frame);
 }
+/* ---------------- abas (rota por #hash) ---------------- */
+const TABS=["simulador","hidratacao"];
+function showTab(name){
+  if(!TABS.includes(name)) name="simulador";
+  for(const t of TABS){
+    document.getElementById("tab-"+t).hidden = t!==name;
+    document.getElementById("tabbtn-"+t).setAttribute("aria-selected", t===name);
+  }
+  if(name==="simulador"){ requestAnimationFrame(()=>{ try{fitSyn(); chart&&chart.resize();}catch(e){} }); }
+}
+document.querySelector(".tabs").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-tab]"); if(!b) return;
+  const n=b.dataset.tab; if(location.hash!=="#"+n) location.hash=n; else showTab(n);
+});
+addEventListener("hashchange",()=>showTab(location.hash.slice(1)));
+
+/* ---------------- calculadora de hidratação ----------------
+   EFSA 2010 (AI total: 2,0 L F / 2,5 L M); IOM 2005 (AI total: 2,7 L F / 3,7 L M; ~80% de bebidas);
+   ACSM 2007 (pré: 5–7 mL/kg ≥4 h antes; pós: ~1,5 L por kg perdido; evitar perda >2% do peso);
+   NIOSH 2017 (calor: ~240 mL a cada 15–20 min; ≤ ~1,4 L/h). */
+function updateHyd(){
+  const w=Math.min(200,Math.max(30,+document.getElementById("hW").value||70));
+  const m=document.getElementById("hSex").value==="m";
+  const loss=Math.min(5,Math.max(0,+document.getElementById("hLoss").value||0));
+  const f=(v,d=1)=>v.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+  const rows=[
+    ["Água total/dia (EFSA)", `${f(m?2.5:2.0)} L`],
+    ["Água total/dia (National Academies)", `${f(m?3.7:2.7)} L`],
+    ["…dos quais em bebidas (≈80%, IOM)", `≈ ${f((m?3.7:2.7)*0.8)} L`],
+    ["Antes do treino, ≥4 h antes (5–7 mL/kg)", `${Math.round(w*5)}–${Math.round(w*7)} mL`],
+    ["Limite de perda no treino (2% do peso)", `${f(w*0.02)} kg`],
+    ["Reposição após o treino (1,5 L/kg perdido)", `≈ ${f(loss*1.5)} L`],
+    ["No calor: a cada 15–20 min", "≈ 240 mL"],
+    ["Teto por hora (NIOSH/OSHA)", "≈ 1,4 L"]
+  ];
+  document.getElementById("hOut").innerHTML=rows.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join("");
+  if(loss>w*0.02) document.getElementById("hOut").insertAdjacentHTML("beforeend",`<dt style="color:var(--warn)">Perda acima de 2% do peso</dt><dd style="color:var(--warn)">beba mais durante</dd>`);
+}
+["hW","hSex","hLoss"].forEach(id=>document.getElementById(id).addEventListener("input",updateHyd));
+updateHyd();
+showTab(location.hash.slice(1));
+
 if(window.Chart){ if(window.ChartZoom) Chart.register(window.ChartZoom); init(); }
 else document.querySelector(".chart-box").innerHTML='<p style="padding:20px">Não foi possível carregar a biblioteca de gráficos (Chart.js). Verifique a conexão.</p>';
 </script>

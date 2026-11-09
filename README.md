@@ -12,6 +12,7 @@ Ou baixe e abra `index.html` direto no navegador (precisa de internet para carre
 - Painel de estado com fase farmacocinética e resumo em linguagem leiga
 - Linha do tempo qualitativa de efeitos, animação da sinapse, painel avançado (ka, k_conv, F, Vd, pH urinário)
 - Tabela de parâmetros com fonte de cada valor e lista de referências
+- Aba **Hidratação** (`#hidratacao`): quanto e com que frequência se hidratar, com base em EFSA, National Academies, ACSM e NIOSH/CDC, e o que muda com LDX + ATX
 
 ## Modelo
 - Atomoxetina: 1 compartimento, absorção de 1ª ordem (Bateman), superposição de doses
